@@ -1,0 +1,317 @@
+{
+  "name": "01 — Scraping Google Places → CRM Sheets",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 2 * * 1,3" }]
+        }
+      },
+      "id": "n01-trigger",
+      "name": "Déclencheur (Lun + Mer à 2h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Génère toutes les combinaisons secteur × ville × query\nconst settings = {\n  villes: [\n    'Paris', 'Lyon', 'Marseille', 'Bordeaux', 'Nantes',\n    'Toulouse', 'Lille', 'Strasbourg', 'Grenoble', 'Nice',\n    'Montpellier', 'Rennes', 'Bruxelles', 'Genève', 'Lausanne'\n  ],\n  secteurs: [\n    { id: 'restauration',  label: 'Restauration', queries: ['restaurant', 'brasserie', 'pizzeria'], score_min_avis: 200 },\n    { id: 'beaute',        label: 'Beauté',        queries: ['salon coiffure', 'institut beauté', 'esthéticienne'], score_min_avis: 100 },\n    { id: 'automobile',   label: 'Automobile',    queries: ['garage automobile', 'carrosserie'], score_min_avis: 150 },\n    { id: 'auto_ecole',   label: 'Auto-école',    queries: ['auto-école', 'école conduite'], score_min_avis: 100 },\n    { id: 'sante',        label: 'Santé',          queries: ['médecin', 'dentiste', 'kinésithérapeute'], score_min_avis: 80 },\n    { id: 'artisanat',    label: 'Artisanat',      queries: ['plombier', 'électricien'], score_min_avis: 80 },\n    { id: 'hotellerie',   label: 'Hôtellerie',     queries: ['hôtel', 'auberge'], score_min_avis: 100 },\n    { id: 'services',     label: 'Services',       queries: ['agence immobilière', 'comptable'], score_min_avis: 50 },\n    { id: 'sport',        label: 'Sport & Loisirs', queries: ['salle de sport', 'yoga', 'coach sportif'], score_min_avis: 80 },\n    { id: 'commerce',     label: 'Commerce',       queries: ['boulangerie', 'fleuriste', 'pharmacie'], score_min_avis: 100 }\n  ]\n};\n\nconst combinations = [];\nfor (const secteur of settings.secteurs) {\n  for (const ville of settings.villes) {\n    for (const query of secteur.queries) {\n      combinations.push({\n        json: {\n          secteur_id:    secteur.id,\n          secteur_label: secteur.label,\n          score_min_avis: secteur.score_min_avis,\n          ville:         ville,\n          query:         `${query} ${ville} France`,\n          batch_key:     `${secteur.id}_${ville}_${query}`.replace(/\\s+/g, '_')\n        }\n      });\n    }\n  }\n}\nreturn combinations;"
+      },
+      "id": "n01-combinations",
+      "name": "Générer combinaisons secteur × ville",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "n01-split",
+      "name": "Traiter une combinaison à la fois",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://maps.googleapis.com/maps/api/place/textsearch/json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "query",    "value": "={{ $json.query }}" },
+            { "name": "language", "value": "fr" },
+            { "name": "key",      "value": "={{ $credentials.value }}" }
+          ]
+        },
+        "options": { "response": { "response": { "responseFormat": "json" } } }
+      },
+      "id": "n01-places-search",
+      "name": "Google Places — Recherche texte",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 300],
+      "credentials": { "httpQueryAuth": { "id": "google-places-key", "name": "Google Places API Key" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraire et filtrer les résultats pertinents\nconst input = $input.first().json;\nconst context = $('Traiter une combinaison à la fois').first().json;\n\nif (!input.results || input.results.length === 0) {\n  return [];\n}\n\nreturn input.results\n  .filter(place => {\n    const hasEnoughReviews = (place.user_ratings_total || 0) >= context.score_min_avis;\n    const hasRating = place.rating !== undefined;\n    return hasEnoughReviews && hasRating;\n  })\n  .map(place => ({\n    json: {\n      place_id:      place.place_id,\n      nom:           place.name,\n      adresse:       place.formatted_address,\n      note_google:   place.rating,\n      nb_avis:       place.user_ratings_total || 0,\n      secteur_id:    context.secteur_id,\n      secteur_label: context.secteur_label,\n      ville:         context.ville,\n      types:         (place.types || []).join(',')\n    }\n  }));"
+      },
+      "id": "n01-extract-places",
+      "name": "Extraire établissements valides",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://maps.googleapis.com/maps/api/place/details/json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "place_id", "value": "={{ $json.place_id }}" },
+            { "name": "fields",   "value": "name,formatted_phone_number,website,opening_hours" },
+            { "name": "language", "value": "fr" },
+            { "name": "key",      "value": "={{ $credentials.value }}" }
+          ]
+        }
+      },
+      "id": "n01-place-details",
+      "name": "Google Places — Détails (téléphone, site)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 300],
+      "credentials": { "httpQueryAuth": { "id": "google-places-key", "name": "Google Places API Key" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fusionner les détails et calculer le score de potentiel\nconst details = $input.first().json.result || {};\nconst prospect = $('Extraire établissements valides').first().json;\n\nconst telephone = details.formatted_phone_number || '';\nconst site_web   = details.website || '';\n\n// Calcul score (0-100)\nconst nb_avis     = prospect.nb_avis || 0;\nconst note        = prospect.note_google || 3;\n\n// Les avis sans réponse ne sont pas disponibles via Places API — estimation\n// On suppose 70% sans réponse par défaut, à affiner manuellement\nconst pct_sans_reponse_estime = 70;\nconst avis_sans_reponse_estime = Math.round(nb_avis * pct_sans_reponse_estime / 100);\n\n// Score : fort nb avis + faible note + pct sans réponse élevé = fort potentiel\nconst score_avis    = Math.min(nb_avis / 500 * 100, 100) * 0.3;\nconst score_note    = (5 - note) / 5 * 100 * 0.2;\nconst score_reponse = pct_sans_reponse_estime * 0.5;\nconst score_total   = Math.round(score_avis + score_note + score_reponse);\n\n// Générer un ID unique\nconst id = `${prospect.secteur_id}_${prospect.place_id}`.substring(0, 40);\n\nreturn [{ json: {\n  id,\n  nom:                    prospect.nom,\n  adresse:                prospect.adresse,\n  secteur:                prospect.secteur_label,\n  ville:                  prospect.ville,\n  telephone:              telephone,\n  site_web:               site_web,\n  note_google:            prospect.note_google,\n  nb_avis:                nb_avis,\n  avis_sans_reponse:      avis_sans_reponse_estime,\n  pct_sans_reponse:       pct_sans_reponse_estime,\n  score:                  score_total,\n  a_un_site:              site_web.length > 0,\n  place_id:               prospect.place_id\n}}];"
+      },
+      "id": "n01-enrich",
+      "name": "Enrichir et scorer le prospect",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            { "leftValue": "={{ $json.a_un_site }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }
+          ]
+        }
+      },
+      "id": "n01-has-website",
+      "name": "A un site web ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1540, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.site_web }}",
+        "options": {
+          "response": { "response": { "responseFormat": "text" } },
+          "timeout": 8000,
+          "allowUnauthorizedCerts": true,
+          "redirect": { "redirect": { "followRedirects": true, "maxRedirects": 3 } }
+        }
+      },
+      "id": "n01-fetch-website",
+      "name": "Télécharger le site web",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraire email depuis le HTML du site\nconst html = $input.first().json.data || '';\nconst prospect = $('Enrichir et scorer le prospect').first().json;\n\nconst emailRegex = /[a-zA-Z0-9._%+\\-àâäéèêëîïôùûü]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}/gi;\nconst emails = (html.match(emailRegex) || [])\n  .map(e => e.toLowerCase())\n  .filter(e =>\n    !e.includes('example') &&\n    !e.includes('noreply') &&\n    !e.includes('no-reply') &&\n    !e.includes('donotreply') &&\n    !e.includes('webmaster') &&\n    !e.includes('@sentry') &&\n    !e.includes('@wp') &&\n    !e.includes('wpcf7') &&\n    !e.includes('@schemas') &&\n    !e.endsWith('.png') &&\n    !e.endsWith('.jpg')\n  );\n\nconst emailUnique = [...new Set(emails)];\nconst email_principal = emailUnique[0] || null;\n\nreturn [{ json: { ...prospect, email: email_principal, tous_emails: emailUnique.join(';') } }];"
+      },
+      "id": "n01-extract-email",
+      "name": "Extraire email depuis site web",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1980, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pas de site web — email null\nconst prospect = $input.first().json;\nreturn [{ json: { ...prospect, email: null, tous_emails: '' } }];"
+      },
+      "id": "n01-no-email",
+      "name": "Pas de site — email null",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1760, 420]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            { "leftValue": "={{ $json.email }}", "rightValue": "", "operator": { "type": "string", "operation": "notEquals" } },
+            { "leftValue": "={{ $json.email }}", "rightValue": null, "operator": { "type": "string", "operation": "notEquals" } },
+            { "leftValue": "={{ $json.score }}", "rightValue": 55, "operator": { "type": "number", "operation": "gte" } }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "n01-filter-quality",
+      "name": "Email trouvé ET score >= 55 ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": { "value": "={{ $vars.SPREADSHEET_ID }}" },
+        "sheetName": { "value": "PROSPECTS" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID":                  "={{ $json.id }}",
+            "EMAIL":               "={{ $json.email }}",
+            "PRENOM":              "",
+            "NOM":                 "",
+            "TELEPHONE":           "={{ $json.telephone }}",
+            "ENTREPRISE":          "={{ $json.nom }}",
+            "SECTEUR":             "={{ $json.secteur }}",
+            "VILLE":               "={{ $json.ville }}",
+            "ADRESSE":             "={{ $json.adresse }}",
+            "SITE_WEB":            "={{ $json.site_web }}",
+            "NOTE_GOOGLE":         "={{ $json.note_google }}",
+            "NB_AVIS":             "={{ $json.nb_avis }}",
+            "AVIS_SANS_REPONSE":   "={{ $json.avis_sans_reponse }}",
+            "PCT_SANS_REPONSE":    "={{ $json.pct_sans_reponse }}",
+            "SCORE":               "={{ $json.score }}",
+            "STATUT":              "nouveau",
+            "DATE_AJOUT":          "={{ new Date().toISOString().split('T')[0] }}",
+            "DATE_DERNIER_ENVOI":  "",
+            "NB_OUVERTURES":       "0",
+            "NB_CLICS":            "0",
+            "DATE_DERNIERE_ACTION": "",
+            "NOTES_COMMERCIALES":  ""
+          }
+        },
+        "matchingColumns": ["ID"],
+        "options": {}
+      },
+      "id": "n01-write-sheets",
+      "name": "Écrire dans Google Sheets (CRM)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [2420, 220],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "google-sheets-creds", "name": "Google Sheets" } }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "value": "={{ $vars.SPREADSHEET_ID }}" },
+        "sheetName": { "value": "LOGS" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "TIMESTAMP":    "={{ new Date().toISOString() }}",
+            "WORKFLOW":     "01_scraping",
+            "PROSPECT_ID":  "={{ $json.id }}",
+            "ACTION":       "prospect_écrit",
+            "STATUT":       "succès",
+            "DETAILS":      "={{ $json.nom }} | {{ $json.ville }} | score={{ $json.score }} | email={{ $json.email }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "n01-log-success",
+      "name": "Logger succès",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [2640, 220],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "google-sheets-creds", "name": "Google Sheets" } }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "value": "={{ $vars.SPREADSHEET_ID }}" },
+        "sheetName": { "value": "LOGS" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "TIMESTAMP":   "={{ new Date().toISOString() }}",
+            "WORKFLOW":    "01_scraping",
+            "PROSPECT_ID": "={{ $json.id }}",
+            "ACTION":      "prospect_ignoré",
+            "STATUT":      "filtré",
+            "DETAILS":     "={{ $json.nom }} | score={{ $json.score }} | email={{ $json.email || 'absent' }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "n01-log-skip",
+      "name": "Logger prospect ignoré",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [2420, 420],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "google-sheets-creds", "name": "Google Sheets" } }
+    }
+  ],
+
+  "connections": {
+    "Déclencheur (Lun + Mer à 2h)": {
+      "main": [[{ "node": "Générer combinaisons secteur × ville", "type": "main", "index": 0 }]]
+    },
+    "Générer combinaisons secteur × ville": {
+      "main": [[{ "node": "Traiter une combinaison à la fois", "type": "main", "index": 0 }]]
+    },
+    "Traiter une combinaison à la fois": {
+      "main": [[{ "node": "Google Places — Recherche texte", "type": "main", "index": 0 }]]
+    },
+    "Google Places — Recherche texte": {
+      "main": [[{ "node": "Extraire établissements valides", "type": "main", "index": 0 }]]
+    },
+    "Extraire établissements valides": {
+      "main": [[{ "node": "Google Places — Détails (téléphone, site)", "type": "main", "index": 0 }]]
+    },
+    "Google Places — Détails (téléphone, site)": {
+      "main": [[{ "node": "Enrichir et scorer le prospect", "type": "main", "index": 0 }]]
+    },
+    "Enrichir et scorer le prospect": {
+      "main": [[{ "node": "A un site web ?", "type": "main", "index": 0 }]]
+    },
+    "A un site web ?": {
+      "main": [
+        [{ "node": "Télécharger le site web", "type": "main", "index": 0 }],
+        [{ "node": "Pas de site — email null", "type": "main", "index": 0 }]
+      ]
+    },
+    "Télécharger le site web": {
+      "main": [[{ "node": "Extraire email depuis site web", "type": "main", "index": 0 }]]
+    },
+    "Extraire email depuis site web": {
+      "main": [[{ "node": "Email trouvé ET score >= 55 ?", "type": "main", "index": 0 }]]
+    },
+    "Pas de site — email null": {
+      "main": [[{ "node": "Email trouvé ET score >= 55 ?", "type": "main", "index": 0 }]]
+    },
+    "Email trouvé ET score >= 55 ?": {
+      "main": [
+        [{ "node": "Écrire dans Google Sheets (CRM)", "type": "main", "index": 0 }],
+        [{ "node": "Logger prospect ignoré", "type": "main", "index": 0 }]
+      ]
+    },
+    "Écrire dans Google Sheets (CRM)": {
+      "main": [[{ "node": "Logger succès", "type": "main", "index": 0 }]]
+    }
+  },
+
+  "active": false,
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true, "callerPolicy": "workflowsFromSameOwner" },
+  "versionId": "01-scraping-v1",
+  "meta": { "templateCredsSetupCompleted": false },
+  "id": "workflow-01-scraping",
+  "tags": [{ "name": "prospection" }, { "name": "scraping" }]
+}
