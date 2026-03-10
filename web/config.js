@@ -4,5 +4,5 @@
 //  Supabase : Settings > API dans votre dashboard
 // ============================================================
 
-window.SUPABASE_URL      = 'https://VOTRE_PROJECT_ID.supabase.co';
-window.SUPABASE_ANON_KEY = 'VOTRE_ANON_KEY';
+window.SUPABASE_URL      = https://eravmidvmoeugplookiy.supabase.co;
+window.SUPABASE_ANON_KEY = sb_publishable_mppZhkyvSKBqCnmsLIo2EA_vV4eA07A;
