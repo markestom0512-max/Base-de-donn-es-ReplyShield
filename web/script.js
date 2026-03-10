@@ -67,21 +67,39 @@ revealTargets.forEach(selector => {
   });
 });
 
-// ── Contact form
+// ── Contact form → Supabase
 const contactForm = document.getElementById('contactForm');
 const formSuccess = document.getElementById('formSuccess');
 
-contactForm.addEventListener('submit', (e) => {
+contactForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn = contactForm.querySelector('button[type="submit"]');
   btn.textContent = 'Envoi en cours…';
   btn.disabled = true;
 
-  // Simulate async send (replace with real fetch/API call)
-  setTimeout(() => {
+  const data = {
+    name:    contactForm.name.value.trim(),
+    company: contactForm.company.value.trim() || null,
+    email:   contactForm.email.value.trim(),
+    service: contactForm.service.value || null,
+    message: contactForm.message.value.trim() || null,
+  };
+
+  try {
+    const supabase = window.supabase.createClient(
+      window.SUPABASE_URL,
+      window.SUPABASE_ANON_KEY
+    );
+    const { error } = await supabase.from('contacts').insert(data);
+    if (error) throw error;
     contactForm.hidden = true;
     formSuccess.hidden = false;
-  }, 1200);
+  } catch (err) {
+    console.error('Erreur envoi formulaire:', err);
+    btn.textContent = 'Envoyer ma demande →';
+    btn.disabled = false;
+    alert('Une erreur est survenue. Merci de réessayer ou de nous contacter directement.');
+  }
 });
 
 // ── Smooth active nav link highlight on scroll

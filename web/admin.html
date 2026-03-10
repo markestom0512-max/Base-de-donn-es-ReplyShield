@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — ReplyShield</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+
+  <!-- ── LOGIN ── -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <div class="login-logo">Reply<span>Shield</span></div>
+      <h1 class="login-title">Espace Admin</h1>
+      <p class="login-sub">Connectez-vous pour gérer vos demandes</p>
+      <form id="loginForm">
+        <div class="field">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" placeholder="admin@replyshield.fr" required autocomplete="email" />
+        </div>
+        <div class="field">
+          <label for="loginPassword">Mot de passe</label>
+          <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password" />
+        </div>
+        <p id="loginError" class="login-error" hidden></p>
+        <button type="submit" class="btn-login" id="loginBtn">Se connecter</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── DASHBOARD ── -->
+  <div id="dashboard" class="dashboard" hidden>
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <a href="index.html" class="topbar-logo">Reply<span>Shield</span></a>
+        <span class="topbar-sep">/</span>
+        <span class="topbar-title">Dashboard</span>
+      </div>
+      <div class="topbar-right">
+        <span id="adminEmail" class="admin-email"></span>
+        <button id="logoutBtn" class="btn-logout">Déconnexion</button>
+      </div>
+    </header>
+
+    <main class="main">
+
+      <!-- Stats -->
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card" id="statTotal">
+          <div class="stat-value">—</div>
+          <div class="stat-label">Total</div>
+        </div>
+        <div class="stat-card stat-new" id="statNew">
+          <div class="stat-value">—</div>
+          <div class="stat-label">Nouveau</div>
+        </div>
+        <div class="stat-card stat-progress" id="statProgress">
+          <div class="stat-value">—</div>
+          <div class="stat-label">En cours</div>
+        </div>
+        <div class="stat-card stat-done" id="statDone">
+          <div class="stat-value">—</div>
+          <div class="stat-label">Traité</div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" data-tab="contacts">Contacts</button>
+        <button class="tab" data-tab="devis">Demandes de devis</button>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters">
+        <input type="text" id="searchInput" class="search-input" placeholder="Rechercher par nom, email, entreprise…" />
+        <select id="statusFilter" class="status-filter">
+          <option value="">Tous les statuts</option>
+          <option value="nouveau">Nouveau</option>
+          <option value="en_cours">En cours</option>
+          <option value="traite">Traité</option>
+        </select>
+        <button id="refreshBtn" class="btn-refresh" title="Rafraîchir">↺</button>
+      </div>
+
+      <!-- Table -->
+      <div class="table-wrapper">
+        <table class="data-table" id="dataTable">
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody">
+            <tr><td colspan="99" class="table-empty">Chargement…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ── MODAL détail / édition ── -->
+  <div id="modal" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <button class="modal-close" id="modalClose">✕</button>
+      <h2 class="modal-title" id="modalTitle">Détail</h2>
+      <div class="modal-fields" id="modalFields"></div>
+      <div class="modal-actions">
+        <div class="modal-status-group">
+          <label>Statut</label>
+          <select id="modalStatus">
+            <option value="nouveau">Nouveau</option>
+            <option value="en_cours">En cours</option>
+            <option value="traite">Traité</option>
+          </select>
+        </div>
+        <div class="modal-notes-group">
+          <label>Notes internes</label>
+          <textarea id="modalNotes" rows="3" placeholder="Ajouter une note…"></textarea>
+        </div>
+        <div class="modal-btns">
+          <button id="modalSave" class="btn-save">Enregistrer</button>
+          <button id="modalDelete" class="btn-delete">Supprimer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="config.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
