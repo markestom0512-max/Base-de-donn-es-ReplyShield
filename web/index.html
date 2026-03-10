@@ -1,32 +1,361 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ReplyShield — Répondez à vos avis Google automatiquement</title>
-    <meta name="description" content="ReplyShield génère des réponses personnalisées à vos avis Google grâce à l&#39;IA. Boostez votre référencement local sans effort.">
-    <!-- TODO: Set the document title to the name of your application -->
-    <title>Lovable App</title>
-    <meta name="description" content="Lovable Generated Project" />
-    <meta name="author" content="Lovable" />
-
-    <!-- TODO: Update og:title to match your application name -->
-    
-    
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e70694f5-dae4-4f40-ba0f-282953fbc3c8/id-preview-ae103823--3cfd4f00-c1e3-4574-a40c-1ce28d39e5c6.lovable.app-1772612713574.png">
-
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@Lovable" />
-    <meta name="twitter:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e70694f5-dae4-4f40-ba0f-282953fbc3c8/id-preview-ae103823--3cfd4f00-c1e3-4574-a40c-1ce28d39e5c6.lovable.app-1772612713574.png">
-    <meta property="og:title" content="ReplyShield — Répondez à vos avis Google automatiquement">
-  <meta name="twitter:title" content="ReplyShield — Répondez à vos avis Google automatiquement">
-  <meta property="og:description" content="ReplyShield génère des réponses personnalisées à vos avis Google grâce à l&#39;IA. Boostez votre référencement local sans effort.">
-  <meta name="twitter:description" content="ReplyShield génère des réponses personnalisées à vos avis Google grâce à l&#39;IA. Boostez votre référencement local sans effort.">
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReplyShield — Avis Google & Création de site</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
 </head>
+<body>
 
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <!-- ────────── NAV ────────── -->
+  <nav id="navbar">
+    <div class="nav-inner">
+      <a href="#" class="logo">Reply<span>Shield</span></a>
+      <ul class="nav-links">
+        <li><a href="#services">Services</a></li>
+        <li><a href="#tarifs">Tarifs</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+      <a href="#contact" class="btn btn-nav">Démarrer</a>
+      <button class="burger" id="burger" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <div class="mobile-menu" id="mobileMenu">
+      <a href="#services" class="mobile-link">Services</a>
+      <a href="#tarifs" class="mobile-link">Tarifs</a>
+      <a href="#contact" class="mobile-link">Contact</a>
+      <a href="#contact" class="btn btn-mobile">Démarrer</a>
+    </div>
+  </nav>
+
+  <!-- ────────── HERO ────────── -->
+  <header class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-blobs">
+      <div class="blob blob-1"></div>
+      <div class="blob blob-2"></div>
+      <div class="blob blob-3"></div>
+    </div>
+    <div class="container hero-content">
+      <div class="badge">✦ L'agence digitale des PME locales</div>
+      <h1>
+        Boostez votre<br />
+        <span class="gradient-text">réputation&nbsp;&amp;&nbsp;visibilité</span><br />
+        en ligne.
+      </h1>
+      <p class="hero-sub">
+        ReplyShield répond à vos avis Google avec l'IA et crée des sites web
+        professionnels qui convertissent — sans effort de votre côté.
+      </p>
+      <div class="hero-ctas">
+        <a href="#services" class="btn btn-primary">Découvrir nos services</a>
+        <a href="#contact" class="btn btn-ghost">Parler à un expert →</a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat">
+          <span class="stat-num">+2 min</span>
+          <span class="stat-label">de réponse par avis</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <span class="stat-num">100%</span>
+          <span class="stat-label">sur mesure</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <span class="stat-num">0</span>
+          <span class="stat-label">effort de votre part</span>
+        </div>
+      </div>
+    </div>
+    <div class="hero-scroll">
+      <span>Scroll</span>
+      <div class="scroll-line"></div>
+    </div>
+  </header>
+
+  <!-- ────────── SERVICES ────────── -->
+  <section id="services" class="services">
+    <div class="container">
+      <div class="section-label">Nos services</div>
+      <h2 class="section-title">Deux services,<br /><span class="gradient-text">un seul objectif.</span></h2>
+      <p class="section-sub">Tout ce dont une PME a besoin pour dominer le digital local.</p>
+
+      <div class="services-grid">
+
+        <!-- SERVICE 1 : REPLY -->
+        <div class="service-card card-reply">
+          <div class="card-icon">💬</div>
+          <div class="card-tag">Service n°1</div>
+          <h3>Réponses automatiques<br />aux avis Google</h3>
+          <p>
+            Notre IA analyse chaque avis laissé sur votre fiche Google et rédige
+            une réponse personnalisée, professionnelle et rapide — adaptée au ton
+            de votre entreprise.
+          </p>
+          <ul class="card-features">
+            <li><span class="check">✓</span> Réponse sous 2 minutes chrono</li>
+            <li><span class="check">✓</span> Ton adapté à votre secteur</li>
+            <li><span class="check">✓</span> Gestion des avis négatifs incluse</li>
+            <li><span class="check">✓</span> Tableau de bord de suivi</li>
+            <li><span class="check">✓</span> Sans engagement, sans effort</li>
+          </ul>
+          <a href="#tarifs" class="btn btn-card">Voir les tarifs</a>
+        </div>
+
+        <!-- SERVICE 2 : CRÉATION DE SITE -->
+        <div class="service-card card-site">
+          <div class="card-icon">🌐</div>
+          <div class="card-tag">Service n°2</div>
+          <h3>Création de site web<br />professionnel</h3>
+          <p>
+            Nous concevons votre site vitrine ou e-commerce de A à Z — design
+            soigné, optimisé SEO, rapide et adapté mobile. Livré clé en main,
+            prêt à générer des clients.
+          </p>
+          <ul class="card-features">
+            <li><span class="check">✓</span> Design unique &amp; sur mesure</li>
+            <li><span class="check">✓</span> Optimisé SEO &amp; Google</li>
+            <li><span class="check">✓</span> 100% responsive (mobile-first)</li>
+            <li><span class="check">✓</span> Hébergement &amp; domaine inclus</li>
+            <li><span class="check">✓</span> Livraison en 7 à 14 jours</li>
+          </ul>
+          <a href="#contact" class="btn btn-card">Demander un devis</a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────── COMMENT ÇA MARCHE ────────── -->
+  <section class="how">
+    <div class="container">
+      <div class="section-label">Comment ça marche</div>
+      <h2 class="section-title">Simple comme<br /><span class="gradient-text">bonjour.</span></h2>
+      <div class="steps-grid">
+        <div class="step">
+          <div class="step-num">01</div>
+          <h4>Vous nous contactez</h4>
+          <p>Un échange rapide pour comprendre vos besoins et votre secteur d'activité.</p>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-num">02</div>
+          <h4>On configure tout</h4>
+          <p>Nous paramétrons l'IA ou démarrons la conception de votre site — sans vous déranger.</p>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-num">03</div>
+          <h4>Vous récoltez les fruits</h4>
+          <p>Votre réputation s'améliore, votre site attire des clients. Vous, vous gérez votre business.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────── TARIFS ────────── -->
+  <section id="tarifs" class="pricing">
+    <div class="container">
+      <div class="section-label">Tarifs</div>
+      <h2 class="section-title">Transparent,<br /><span class="gradient-text">sans mauvaises surprises.</span></h2>
+      <p class="section-sub">Choisissez la formule qui correspond à votre activité.</p>
+
+      <!-- REPLY PRICING -->
+      <div class="pricing-block">
+        <div class="pricing-block-title">
+          <span class="pricing-icon">💬</span>
+          Réponses aux avis Google
+        </div>
+        <div class="pricing-cards">
+
+          <div class="pricing-card">
+            <div class="plan-name">Starter</div>
+            <div class="plan-price"><span class="price-currency">€</span>49<span class="price-period">/mois</span></div>
+            <p class="plan-desc">Idéal pour démarrer et tester le service.</p>
+            <ul class="plan-features">
+              <li>✓ Jusqu'à 30 avis / mois</li>
+              <li>✓ 1 fiche Google</li>
+              <li>✓ Réponses en 2 min</li>
+              <li>✓ Rapport mensuel</li>
+            </ul>
+            <a href="#contact" class="btn btn-plan">Commencer</a>
+          </div>
+
+          <div class="pricing-card plan-featured">
+            <div class="plan-badge">Le plus populaire</div>
+            <div class="plan-name">Pro</div>
+            <div class="plan-price"><span class="price-currency">€</span>99<span class="price-period">/mois</span></div>
+            <p class="plan-desc">Pour les établissements avec un flux d'avis régulier.</p>
+            <ul class="plan-features">
+              <li>✓ Avis illimités</li>
+              <li>✓ Jusqu'à 3 fiches Google</li>
+              <li>✓ Réponses en 2 min</li>
+              <li>✓ Gestion avis négatifs prioritaire</li>
+              <li>✓ Rapport hebdomadaire</li>
+            </ul>
+            <a href="#contact" class="btn btn-plan-featured">Commencer</a>
+          </div>
+
+          <div class="pricing-card">
+            <div class="plan-name">Business</div>
+            <div class="plan-price"><span class="price-currency">€</span>199<span class="price-period">/mois</span></div>
+            <p class="plan-desc">Pour les franchises et multi-établissements.</p>
+            <ul class="plan-features">
+              <li>✓ Avis illimités</li>
+              <li>✓ Fiches Google illimitées</li>
+              <li>✓ Réponses en 2 min</li>
+              <li>✓ Account manager dédié</li>
+              <li>✓ Tableau de bord temps réel</li>
+              <li>✓ Intégration sur mesure</li>
+            </ul>
+            <a href="#contact" class="btn btn-plan">Commencer</a>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- SITE DEVIS -->
+      <div class="pricing-block pricing-block-devis">
+        <div class="pricing-block-title">
+          <span class="pricing-icon">🌐</span>
+          Création de site web
+        </div>
+        <div class="devis-card">
+          <div class="devis-left">
+            <h3>Prix sur devis,<br /><span class="gradient-text">adapté à votre projet.</span></h3>
+            <p>
+              Chaque site est unique. Le tarif dépend du nombre de pages, des
+              fonctionnalités souhaitées et du délai de livraison. On vous répond
+              sous 24h avec une estimation claire et sans engagement.
+            </p>
+            <ul class="devis-list">
+              <li>✓ Site vitrine — à partir de 490€</li>
+              <li>✓ Site e-commerce — à partir de 990€</li>
+              <li>✓ Maintenance mensuelle disponible</li>
+            </ul>
+          </div>
+          <div class="devis-right">
+            <a href="#contact" class="btn btn-devis">Demander un devis gratuit →</a>
+            <p class="devis-note">Réponse sous 24h · Sans engagement</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ────────── POURQUOI NOUS ────────── -->
+  <section class="why">
+    <div class="container">
+      <div class="section-label">Pourquoi ReplyShield</div>
+      <h2 class="section-title">On se soucie vraiment<br /><span class="gradient-text">de votre succès.</span></h2>
+      <div class="why-grid">
+        <div class="why-card">
+          <div class="why-icon">⚡</div>
+          <h4>Réactivité absolue</h4>
+          <p>Nos IA répondent en moins de 2 minutes, 7j/7, 24h/24. Jamais un avis sans réponse.</p>
+        </div>
+        <div class="why-card">
+          <div class="why-icon">🧠</div>
+          <h4>IA entraînée sur votre secteur</h4>
+          <p>On ne copie-colle pas des réponses génériques. L'IA s'adapte à votre ton, vos valeurs.</p>
+        </div>
+        <div class="why-card">
+          <div class="why-icon">🎯</div>
+          <h4>Résultats mesurables</h4>
+          <p>Note Google en hausse, plus de clics, plus d'appels. On vous donne les chiffres.</p>
+        </div>
+        <div class="why-card">
+          <div class="why-icon">🤝</div>
+          <h4>Accompagnement humain</h4>
+          <p>Une équipe disponible par chat, email ou téléphone. Vous n'êtes jamais seul.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────── CONTACT ────────── -->
+  <section id="contact" class="contact">
+    <div class="container">
+      <div class="contact-box">
+        <div class="contact-left">
+          <div class="section-label light">Contact</div>
+          <h2>Prêt à passer<br /><span class="gradient-text">à la vitesse supérieure ?</span></h2>
+          <p>Remplissez le formulaire, on vous recontacte sous 24h avec une proposition personnalisée.</p>
+          <div class="contact-info">
+            <div class="contact-info-item">
+              <span class="ci-icon">📧</span>
+              <span>contact@replyshield.fr</span>
+            </div>
+            <div class="contact-info-item">
+              <span class="ci-icon">📞</span>
+              <span>+33 1 23 45 67 89</span>
+            </div>
+          </div>
+        </div>
+        <div class="contact-right">
+          <form class="contact-form" id="contactForm">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="name">Nom</label>
+                <input type="text" id="name" name="name" placeholder="Jean Dupont" required />
+              </div>
+              <div class="form-group">
+                <label for="company">Entreprise</label>
+                <input type="text" id="company" name="company" placeholder="Ma Boutique SAS" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="email">Email</label>
+              <input type="email" id="email" name="email" placeholder="jean@maboutique.fr" required />
+            </div>
+            <div class="form-group">
+              <label for="service">Service souhaité</label>
+              <select id="service" name="service">
+                <option value="">-- Choisir un service --</option>
+                <option value="reply">Réponses aux avis Google</option>
+                <option value="site">Création de site web</option>
+                <option value="both">Les deux</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="message">Message</label>
+              <textarea id="message" name="message" rows="4" placeholder="Décrivez votre projet ou votre question..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-submit">Envoyer ma demande →</button>
+            <p class="form-note">Sans engagement · Réponse sous 24h</p>
+          </form>
+          <div class="form-success" id="formSuccess" hidden>
+            <div class="success-icon">✅</div>
+            <h3>Message envoyé !</h3>
+            <p>On revient vers vous sous 24h. Merci de votre confiance.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────── FOOTER ────────── -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <a href="#" class="logo">Reply<span>Shield</span></a>
+      <p class="footer-tagline">L'agence digitale des PME qui veulent gagner en ligne.</p>
+      <div class="footer-links">
+        <a href="#services">Services</a>
+        <a href="#tarifs">Tarifs</a>
+        <a href="#contact">Contact</a>
+        <a href="#">Mentions légales</a>
+      </div>
+      <p class="footer-copy">&copy; 2025 ReplyShield. Tous droits réservés.</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
 </html>
