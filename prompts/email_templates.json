@@ -1,0 +1,43 @@
+{
+  "_commentaire": "Prompts envoyés à Claude (claude-sonnet-4-6) pour générer les emails. Personnalisez par secteur.",
+
+  "systeme": "Tu es un expert en prospection B2B. Tu rédiges des emails courts, directs et personnalisés pour convertir des professionnels en clients. Tu n'utilises jamais de formules creuses. Tu vas droit au problème du prospect. Tes emails font maximum 150 mots. Tu n'inventes aucune donnée.",
+
+  "email_initial": {
+    "_commentaire": "Variables disponibles : {prenom}, {entreprise}, {secteur}, {ville}, {nb_avis}, {avis_sans_reponse}, {pct_sans_reponse}, {note_google}, {produit_nom}, {produit_pitch}, {url_essai}, {essai}",
+
+    "prompt_generation_objet": "Génère 1 objet d'email percutant (max 60 caractères) pour prospecter {prenom} qui dirige {entreprise} ({secteur}) à {ville}. Son établissement a {nb_avis} avis Google dont {avis_sans_reponse} ({pct_sans_reponse}%) sans réponse. L'email propose {produit_nom} : {produit_pitch}. L'objet doit mentionner un chiffre réel et créer de l'urgence. Réponds uniquement avec l'objet, rien d'autre.",
+
+    "prompt_generation_corps": "Rédige un email de prospection B2B pour {prenom}, dirigeant de {entreprise} ({secteur}) à {ville}.\n\nContexte réel de cet établissement :\n- {nb_avis} avis Google au total\n- {avis_sans_reponse} avis sans réponse ({pct_sans_reponse}%)\n- Note Google actuelle : {note_google}/5\n\nProduit à promouvoir : {produit_nom}\nPitch : {produit_pitch}\nOffre : {essai}\nLien : {url_essai}\n\nContraintes :\n- Commence directement par le prénom (pas de 'Bonjour [Prenom]'... fais quelque chose d'original)\n- Cite les vrais chiffres de cet établissement\n- 3 paragraphes max, 120 mots max\n- 1 seul call-to-action à la fin\n- Ton : direct, humain, sans jargon marketing\n- Signe avec 'L'équipe {produit_nom}'\n\nRéponds uniquement avec le corps de l'email, sans objet."
+  },
+
+  "relance_1": {
+    "prompt_generation_objet": "Génère 1 objet de relance (max 55 caractères) pour {prenom} de {entreprise}. C'est la première relance, ton décontracté. Inclus le prénom. Réponds uniquement avec l'objet.",
+
+    "prompt_generation_corps": "Rédige une relance douce (J+7) pour {prenom} de {entreprise} ({secteur}).\n\nContexte : Tu lui as envoyé un email la semaine dernière sur {produit_nom} ({produit_pitch}). Il n'a pas répondu mais peut-être n'a-t-il pas eu le temps.\n\nSes chiffres : {avis_sans_reponse} avis sans réponse sur {nb_avis} total.\n\nContraintes :\n- Très court (80 mots max)\n- Ton : léger, humain, pas de pression\n- Rappelle le problème en 1 phrase\n- 1 seul CTA : {url_essai}\n- Pas de copier-coller du premier email\n\nRéponds uniquement avec le corps de l'email."
+  },
+
+  "relance_2": {
+    "prompt_generation_objet": "Génère 1 objet de relance finale (max 50 caractères) pour {prenom} de {entreprise}. Ton : dernier message, légèrement urgent mais pas agressif. Réponds uniquement avec l'objet.",
+
+    "prompt_generation_corps": "Rédige la relance finale (J+14) pour {prenom} de {entreprise} ({secteur}).\n\nC'est le dernier email de la séquence. Crée une légère urgence sans être agressif. Propose une porte de sortie (désinscription).\n\nSes chiffres : {avis_sans_reponse} avis sans réponse, note {note_google}/5.\nLien : {url_essai} ({essai})\n\nContraintes :\n- 70 mots max\n- Mentionne que c'est le dernier message\n- Lien de désinscription en fin : {url_desinscription}\n\nRéponds uniquement avec le corps de l'email."
+  },
+
+  "alerte_prospect_chaud": {
+    "prompt_generation": "Génère une notification courte (50 mots max) pour alerter le commercial que {prenom} de {entreprise} ({secteur}, {ville}) est un prospect chaud : il a ouvert l'email {nb_ouvertures} fois et/ou cliqué. Son score est {score}/100. Formule une suggestion d'action immédiate. Ton : bref et actionnable."
+  },
+
+  "secteurs_specificites": {
+    "_commentaire": "Contexte supplémentaire injecté dans le prompt selon le secteur pour affiner le ton",
+    "restauration": "Dans la restauration, les avis Google sont critiques pour le remplissage. Un avis négatif sans réponse visible coûte en moyenne 30% de clients potentiels.",
+    "beaute": "Dans la beauté, la confiance et l'image sont primordiales. Les avis sans réponse donnent l'impression d'un salon qui ne se soucie pas de ses clientes.",
+    "automobile": "Dans l'automobile, les clients lisent les avis avant chaque grosse décision d'achat ou de réparation. Répondre aux avis est vu comme un signe de sérieux.",
+    "auto_ecole": "Dans les auto-écoles, les parents vérifient les avis avant d'inscrire leurs enfants. Un taux de réponse élevé rassure sur le suivi pédagogique.",
+    "sante": "Dans la santé, répondre aux avis patients renforce la crédibilité professionnelle et est de plus en plus attendu par les patients.",
+    "artisanat": "Dans l'artisanat, les avis Google sont la principale source de nouveaux clients. Chaque réponse montre le sérieux et le professionnalisme.",
+    "hotellerie": "Dans l'hôtellerie, les plateformes de réservation (Booking, etc.) valorisent les établissements qui répondent aux avis. C'est un facteur de référencement direct.",
+    "services": "Dans les services B2B, les décideurs lisent les avis avant de signer. Une bonne gestion des avis est un argument commercial en soi.",
+    "sport_loisirs": "Dans le sport et les loisirs, la communauté en ligne est très active. Les avis influencent massivement les inscriptions.",
+    "commerce": "Dans le commerce de proximité, les avis Google influencent le trafic physique en magasin. Google affiche la note en évidence dans les recherches locales."
+  }
+}

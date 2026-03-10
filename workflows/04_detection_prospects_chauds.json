@@ -1,0 +1,288 @@
+{
+  "name": "04 — Détection prospects chauds (Webhook Brevo → Alerte)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "brevo-events",
+        "responseMode": "immediatelyAfterExecution",
+        "options": {}
+      },
+      "id": "n04-webhook",
+      "name": "Webhook — Événements Brevo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "brevo-events-hook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parser l'événement Brevo\n// Brevo envoie un tableau d'événements\nconst body = $input.first().json.body || $input.first().json;\nconst events = Array.isArray(body) ? body : [body];\n\nreturn events.map(event => ({\n  json: {\n    event_type:   event.event || '',\n    email:        event.email || '',\n    timestamp:    event.ts_event || event.date || new Date().toISOString(),\n    message_id:   event['message-id'] || '',\n    prospect_id:  event['X-Prospect-ID'] || event.headers?.['X-Prospect-ID'] || '',\n    relance_type: event['X-Relance-Type'] || event.headers?.['X-Relance-Type'] || 'email_initial',\n    tag:          (event.tags || []).join(',')\n  }\n}));"
+      },
+      "id": "n04-parse-event",
+      "name": "Parser événement Brevo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            {
+              "leftValue":  "={{ $json.event_type }}",
+              "operator":   { "type": "string", "operation": "regex" },
+              "rightValue": "open|click|reply"
+            }
+          ]
+        }
+      },
+      "id": "n04-filter-relevant",
+      "name": "Événement ouverture/clic/réponse ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "documentId": { "value": "={{ $vars.SPREADSHEET_ID }}" },
+        "sheetName": { "value": "PROSPECTS" },
+        "filters": {
+          "conditions": [
+            { "value1": "={{ $json.EMAIL }}", "condition": "eq", "value2": "={{ $json.email }}" }
+          ]
+        },
+        "options": { "returnAll": false, "limit": 1 }
+      },
+      "id": "n04-find-prospect",
+      "name": "Trouver prospect dans Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [660, 200],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "google-sheets-creds", "name": "Google Sheets" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculer les nouveaux compteurs\nconst event     = $('Parser événement Brevo').first().json;\nconst prospect  = $input.first().json;\n\nif (!prospect || !prospect.ID) {\n  return [{ json: { _not_found: true } }];\n}\n\nconst isClick   = event.event_type === 'click';\nconst isOpen    = event.event_type === 'open' || event.event_type === 'opened';\nconst isReply   = event.event_type === 'reply';\n\nconst nb_ouvertures = parseInt(prospect.NB_OUVERTURES || '0') + (isOpen ? 1 : 0);\nconst nb_clics      = parseInt(prospect.NB_CLICS      || '0') + (isClick ? 1 : 0);\n\n// Seuil : 3 ouvertures ou 1 clic = prospect chaud\nconst SEUIL_OUVERTURES = 3;\nconst est_chaud = nb_ouvertures >= SEUIL_OUVERTURES || nb_clics >= 1 || isReply;\nconst statut_actuel = prospect.STATUT || '';\nconst deja_chaud = ['chaud', 'converti'].includes(statut_actuel);\n\nreturn [{ json: {\n  ...prospect,\n  event_type:         event.event_type,\n  nb_ouvertures,\n  nb_clics,\n  est_chaud,\n  deja_chaud,\n  alerter:            est_chaud && !deja_chaud,\n  nouveau_statut:     est_chaud ? 'chaud' : statut_actuel,\n  timestamp_action:   new Date().toISOString()\n} }];"
+      },
+      "id": "n04-compute-score",
+      "name": "Calculer compteurs et statut chaud",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            { "leftValue": "={{ $json._not_found }}", "rightValue": true, "operator": { "type": "boolean", "operation": "notEquals" } }
+          ]
+        }
+      },
+      "id": "n04-check-found",
+      "name": "Prospect trouvé ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": { "value": "={{ $vars.SPREADSHEET_ID }}" },
+        "sheetName": { "value": "PROSPECTS" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID":                   "={{ $json.ID }}",
+            "NB_OUVERTURES":        "={{ $json.nb_ouvertures }}",
+            "NB_CLICS":             "={{ $json.nb_clics }}",
+            "STATUT":               "={{ $json.nouveau_statut }}",
+            "DATE_DERNIERE_ACTION": "={{ $json.timestamp_action }}"
+          }
+        },
+        "matchingColumns": ["ID"],
+        "options": {}
+      },
+      "id": "n04-update-sheets",
+      "name": "MAJ compteurs dans Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1320, 100],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "google-sheets-creds", "name": "Google Sheets" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            { "leftValue": "={{ $json.alerter }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }
+          ]
+        }
+      },
+      "id": "n04-should-alert",
+      "name": "Doit-on envoyer une alerte ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1540, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Générer l'alerte prospect chaud via Claude\nconst p = $input.first().json;\n\nconst prompt = `Génère une notification courte (50 mots maximum) pour alerter un commercial que ${p.PRENOM || 'le dirigeant'} de ${p.ENTREPRISE} (${p.SECTEUR}, ${p.VILLE}) est un prospect chaud.\n\nFaits : il a ouvert l'email ${p.nb_ouvertures} fois, cliqué ${p.nb_clics} fois. Son score est ${p.SCORE}/100.\n\nFormule une suggestion d'action immédiate et concrète. Ton : bref, actionnable, sans émojis excessifs.`;\n\nreturn [{ json: { ...p, alertPrompt: prompt } }];"
+      },
+      "id": "n04-prepare-alert",
+      "name": "Préparer prompt alerte Claude",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1760, 60]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key",         "value": "={{ $credentials.password }}" },
+            { "name": "anthropic-version",  "value": "2023-06-01" },
+            { "name": "content-type",       "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-haiku-4-5-20251001\",\n  \"max_tokens\": 150,\n  \"system\": \"Tu génères des alertes commerciales ultra-courtes et actionnables.\",\n  \"messages\": [{ \"role\": \"user\", \"content\": {{ JSON.stringify($json.alertPrompt) }} }]\n}",
+        "options": {}
+      },
+      "id": "n04-claude-alert",
+      "name": "Claude — Générer texte alerte",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1980, 60],
+      "credentials": { "httpBasicAuth": { "id": "anthropic-key", "name": "Anthropic API Key" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.brevo.com/v3/smtp/email",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "api-key",      "value": "={{ $credentials.password }}" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"sender\": { \"name\": \"ReplyShield CRM\", \"email\": \"crm@replyshield.io\" },\n  \"to\": [{ \"email\": \"{{ $vars.ALERTE_EMAIL }}\", \"name\": \"Commercial ReplyShield\" }],\n  \"subject\": \"🔥 Prospect chaud : {{ $('Calculer compteurs et statut chaud').first().json.ENTREPRISE }} ({{ $('Calculer compteurs et statut chaud').first().json.VILLE }})\",\n  \"htmlContent\": \"<html><body style='font-family:Arial,sans-serif;padding:20px;max-width:600px;'><h2 style='color:#e74c3c;'>🔥 Prospect chaud détecté !</h2><table style='width:100%;border-collapse:collapse;'><tr style='background:#f8f9fa;'><td style='padding:10px;font-weight:bold;'>Entreprise</td><td style='padding:10px;'>{{ $('Calculer compteurs et statut chaud').first().json.ENTREPRISE }}</td></tr><tr><td style='padding:10px;font-weight:bold;'>Contact</td><td style='padding:10px;'>{{ $('Calculer compteurs et statut chaud').first().json.PRENOM }} {{ $('Calculer compteurs et statut chaud').first().json.NOM }}</td></tr><tr style='background:#f8f9fa;'><td style='padding:10px;font-weight:bold;'>Email</td><td style='padding:10px;'><a href='mailto:{{ $('Calculer compteurs et statut chaud').first().json.EMAIL }}'>{{ $('Calculer compteurs et statut chaud').first().json.EMAIL }}</a></td></tr><tr><td style='padding:10px;font-weight:bold;'>Secteur</td><td style='padding:10px;'>{{ $('Calculer compteurs et statut chaud').first().json.SECTEUR }} — {{ $('Calculer compteurs et statut chaud').first().json.VILLE }}</td></tr><tr style='background:#f8f9fa;'><td style='padding:10px;font-weight:bold;'>Score</td><td style='padding:10px;'><strong>{{ $('Calculer compteurs et statut chaud').first().json.SCORE }}/100</strong></td></tr><tr><td style='padding:10px;font-weight:bold;'>Ouvertures</td><td style='padding:10px;'>{{ $('Calculer compteurs et statut chaud').first().json.nb_ouvertures }} fois</td></tr><tr style='background:#f8f9fa;'><td style='padding:10px;font-weight:bold;'>Clics</td><td style='padding:10px;'>{{ $('Calculer compteurs et statut chaud').first().json.nb_clics }} fois</td></tr></table><div style='margin:20px 0;padding:15px;background:#fff3cd;border-radius:8px;border-left:4px solid #ffc107;'><strong>Recommandation IA :</strong><br>{{ $('Claude — Générer texte alerte').first().json.content[0].text }}</div><a href='https://docs.google.com/spreadsheets/d/{{ $vars.SPREADSHEET_ID }}' style='display:inline-block;padding:12px 24px;background:#e74c3c;color:white;text-decoration:none;border-radius:6px;margin-top:10px;'>Voir dans le CRM</a></body></html>\"\n}",
+        "options": {}
+      },
+      "id": "n04-send-alert",
+      "name": "Brevo — Envoyer alerte email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2200, 60],
+      "credentials": { "httpBasicAuth": { "id": "brevo-key", "name": "Brevo API Key" } }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "value": "={{ $vars.SPREADSHEET_ID }}" },
+        "sheetName": { "value": "LOGS" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "TIMESTAMP":   "={{ new Date().toISOString() }}",
+            "WORKFLOW":    "04_detection",
+            "PROSPECT_ID": "={{ $('Calculer compteurs et statut chaud').first().json.ID }}",
+            "ACTION":      "={{ $('Calculer compteurs et statut chaud').first().json.event_type }}",
+            "STATUT":      "alerte_envoyée",
+            "DETAILS":     "={{ $('Calculer compteurs et statut chaud').first().json.ENTREPRISE }} | ouvertures={{ $('Calculer compteurs et statut chaud').first().json.nb_ouvertures }} | clics={{ $('Calculer compteurs et statut chaud').first().json.nb_clics }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "n04-log-alert",
+      "name": "Logger alerte prospect chaud",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [2420, 60],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "google-sheets-creds", "name": "Google Sheets" } }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "value": "={{ $vars.SPREADSHEET_ID }}" },
+        "sheetName": { "value": "LOGS" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "TIMESTAMP":   "={{ new Date().toISOString() }}",
+            "WORKFLOW":    "04_detection",
+            "PROSPECT_ID": "={{ $json.ID }}",
+            "ACTION":      "={{ $json.event_type }}",
+            "STATUT":      "compteur_mis_à_jour",
+            "DETAILS":     "={{ $json.ENTREPRISE }} | ouvertures={{ $json.nb_ouvertures }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "n04-log-update",
+      "name": "Logger mise à jour compteur",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1540, 280],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "google-sheets-creds", "name": "Google Sheets" } }
+    }
+  ],
+
+  "connections": {
+    "Webhook — Événements Brevo": {
+      "main": [[{ "node": "Parser événement Brevo", "type": "main", "index": 0 }]]
+    },
+    "Parser événement Brevo": {
+      "main": [[{ "node": "Événement ouverture/clic/réponse ?", "type": "main", "index": 0 }]]
+    },
+    "Événement ouverture/clic/réponse ?": {
+      "main": [
+        [{ "node": "Trouver prospect dans Sheets", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Trouver prospect dans Sheets": {
+      "main": [[{ "node": "Calculer compteurs et statut chaud", "type": "main", "index": 0 }]]
+    },
+    "Calculer compteurs et statut chaud": {
+      "main": [[{ "node": "Prospect trouvé ?", "type": "main", "index": 0 }]]
+    },
+    "Prospect trouvé ?": {
+      "main": [
+        [{ "node": "MAJ compteurs dans Sheets", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "MAJ compteurs dans Sheets": {
+      "main": [[{ "node": "Doit-on envoyer une alerte ?", "type": "main", "index": 0 }]]
+    },
+    "Doit-on envoyer une alerte ?": {
+      "main": [
+        [{ "node": "Préparer prompt alerte Claude", "type": "main", "index": 0 }],
+        [{ "node": "Logger mise à jour compteur", "type": "main", "index": 0 }]
+      ]
+    },
+    "Préparer prompt alerte Claude": {
+      "main": [[{ "node": "Claude — Générer texte alerte", "type": "main", "index": 0 }]]
+    },
+    "Claude — Générer texte alerte": {
+      "main": [[{ "node": "Brevo — Envoyer alerte email", "type": "main", "index": 0 }]]
+    },
+    "Brevo — Envoyer alerte email": {
+      "main": [[{ "node": "Logger alerte prospect chaud", "type": "main", "index": 0 }]]
+    }
+  },
+
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "04-detection-v1",
+  "id": "workflow-04-detection",
+  "tags": [{ "name": "prospection" }, { "name": "detection" }, { "name": "webhook" }]
+}

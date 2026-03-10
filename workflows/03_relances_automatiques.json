@@ -1,0 +1,258 @@
+{
+  "name": "03 — Relances automatiques (J+7 et J+14)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 10 * * 1-5" }]
+        }
+      },
+      "id": "n03-trigger",
+      "name": "Déclencheur (Lun-Ven à 10h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "documentId": { "value": "={{ $vars.SPREADSHEET_ID }}" },
+        "sheetName": { "value": "PROSPECTS" },
+        "options": { "returnAll": true }
+      },
+      "id": "n03-get-all",
+      "name": "Lire tous les prospects",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [220, 300],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "google-sheets-creds", "name": "Google Sheets" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Identifier les prospects à relancer selon leur statut et délai\nconst aujourd_hui = new Date();\nconst DELAI_RELANCE_1_JOURS = 7;\nconst DELAI_RELANCE_2_JOURS = 14;\n\nconst toRelancer = [];\n\nfor (const item of $input.all()) {\n  const p = item.json;\n  const statut = p.STATUT || '';\n  const email = p.EMAIL || '';\n  const dateAction = p.DATE_DERNIER_ENVOI ? new Date(p.DATE_DERNIER_ENVOI) : null;\n\n  if (!email.includes('@') || !dateAction) continue;\n\n  const joursEcoules = Math.floor((aujourd_hui - dateAction) / (1000 * 60 * 60 * 24));\n\n  let typeRelance = null;\n  if (statut === 'contacté' && joursEcoules >= DELAI_RELANCE_1_JOURS) {\n    typeRelance = 'relance_1';\n  } else if (statut === 'relance_1' && joursEcoules >= DELAI_RELANCE_2_JOURS) {\n    typeRelance = 'relance_2';\n  }\n\n  if (typeRelance) {\n    toRelancer.push({ json: { ...p, typeRelance, joursEcoules } });\n  }\n}\n\nconsole.log(`${toRelancer.length} prospects à relancer aujourd'hui`);\nreturn toRelancer.length > 0 ? toRelancer : [{ json: { _empty: true } }];"
+      },
+      "id": "n03-filter-relances",
+      "name": "Identifier prospects à relancer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            { "leftValue": "={{ $json._empty }}", "rightValue": true, "operator": { "type": "boolean", "operation": "notEquals" } }
+          ]
+        }
+      },
+      "id": "n03-check-empty",
+      "name": "Y a-t-il des relances ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "n03-split",
+      "name": "Traiter une relance à la fois",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [880, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Construire le prompt Claude selon le type de relance\nconst p = $input.first().json;\nconst typeRelance = p.typeRelance;\n\nlet promptObjet, promptCorps;\n\nif (typeRelance === 'relance_1') {\n  promptObjet = `Génère 1 objet de relance douce (max 55 caractères) pour ${p.PRENOM || 'le dirigeant'} de ${p.ENTREPRISE}. C'est la première relance J+7. Ton décontracté, inclus le prénom si possible. Réponds uniquement avec l'objet.`;\n\n  promptCorps = `Rédige une relance douce (J+7) pour ${p.PRENOM || 'le dirigeant'} de ${p.ENTREPRISE} (${p.SECTEUR}) à ${p.VILLE}.\n\nContexte : Tu lui as envoyé un email il y a 7 jours à propos de ReplyShield (répondre automatiquement aux avis Google). Il n'a pas répondu.\n\nSes chiffres : ${p.AVIS_SANS_REPONSE} avis sans réponse sur ${p.NB_AVIS} total (${p.PCT_SANS_REPONSE}%), note ${p.NOTE_GOOGLE}/5.\n\nContraintes :\n- 80 mots maximum\n- Ton : léger, humain, pas de pression\n- Rappelle le problème en 1 phrase seulement\n- 1 seul CTA : https://replyshield.io/essai-gratuit\n- Ne répète pas le premier email mot pour mot\n- Signe avec 'L'équipe ReplyShield'\n\nRéponds uniquement avec le corps, sans objet.`;\n\n} else {\n  promptObjet = `Génère 1 objet de relance finale (max 50 caractères) pour ${p.PRENOM || 'le dirigeant'} de ${p.ENTREPRISE}. C'est le dernier message. Légèrement urgent, pas agressif. Réponds uniquement avec l'objet.`;\n\n  promptCorps = `Rédige la relance finale (J+14) pour ${p.PRENOM || 'le dirigeant'} de ${p.ENTREPRISE} (${p.SECTEUR}).\n\nC'est le dernier email de la séquence. Crée une légère urgence sans être agressif. Mentionne explicitement que c'est le dernier message.\n\nSes chiffres : ${p.AVIS_SANS_REPONSE} avis sans réponse, note ${p.NOTE_GOOGLE}/5.\nLien essai : https://replyshield.io/essai-gratuit (14 jours gratuits, sans carte)\nLien désinscription : https://replyshield.io/desinscription?id=${p.ID}\n\nContraintes :\n- 70 mots maximum\n- Inclure le lien de désinscription en fin de message\n- Signe avec 'L'équipe ReplyShield'\n\nRéponds uniquement avec le corps, sans objet.`;\n}\n\nreturn [{ json: { ...p, promptObjet, promptCorps } }];"
+      },
+      "id": "n03-prepare-prompt",
+      "name": "Préparer prompt selon type de relance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key",         "value": "={{ $credentials.password }}" },
+            { "name": "anthropic-version",  "value": "2023-06-01" },
+            { "name": "content-type",       "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-6\",\n  \"max_tokens\": 80,\n  \"system\": \"Tu génères uniquement des objets d'email courts. Réponds avec l'objet uniquement, sans guillemets.\",\n  \"messages\": [{ \"role\": \"user\", \"content\": {{ JSON.stringify($json.promptObjet) }} }]\n}",
+        "options": {}
+      },
+      "id": "n03-claude-objet",
+      "name": "Claude — Objet relance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 100],
+      "credentials": { "httpBasicAuth": { "id": "anthropic-key", "name": "Anthropic API Key" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key",         "value": "={{ $credentials.password }}" },
+            { "name": "anthropic-version",  "value": "2023-06-01" },
+            { "name": "content-type",       "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-6\",\n  \"max_tokens\": 400,\n  \"system\": \"Tu rédiges des emails de relance B2B courts et naturels. Pas de formules creuses. Tes emails font maximum 80 mots.\",\n  \"messages\": [{ \"role\": \"user\", \"content\": {{ JSON.stringify($('Préparer prompt selon type de relance').first().json.promptCorps) }} }]\n}",
+        "options": {}
+      },
+      "id": "n03-claude-corps",
+      "name": "Claude — Corps relance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 300],
+      "credentials": { "httpBasicAuth": { "id": "anthropic-key", "name": "Anthropic API Key" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prospect = $('Préparer prompt selon type de relance').first().json;\nconst objet    = $('Claude — Objet relance').first().json.content?.[0]?.text?.trim() || 'Juste un rappel...';\nconst corps    = $('Claude — Corps relance').first().json.content?.[0]?.text?.trim() || '';\nconst tag      = prospect.typeRelance === 'relance_1' ? 'relance-1' : 'relance-finale';\n\nreturn [{ json: { ...prospect, relance_objet: objet, relance_corps: corps, tag } }];"
+      },
+      "id": "n03-merge",
+      "name": "Fusionner relance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.brevo.com/v3/smtp/email",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "api-key",      "value": "={{ $credentials.password }}" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"sender\": { \"name\": \"Manus de ReplyShield\", \"email\": \"manus@replyshield.io\" },\n  \"to\": [{ \"email\": \"{{ $json.EMAIL }}\", \"name\": \"{{ $json.PRENOM }} {{ $json.NOM }}\" }],\n  \"subject\": \"{{ $json.relance_objet }}\",\n  \"htmlContent\": \"<html><body style='font-family:Arial,sans-serif;font-size:15px;color:#333;max-width:600px;margin:auto;padding:20px;line-height:1.6;'>{{ $json.relance_corps.replace(/\\n/g,'<br>') }}<br><br><hr style='border:none;border-top:1px solid #eee;margin:20px 0;'><p style='font-size:12px;color:#999;'><a href='https://replyshield.io/desinscription?id={{ $json.ID }}' style='color:#999;'>Se désinscrire</a></p></body></html>\",\n  \"tags\": [\"{{ $json.tag }}\", \"{{ $json.SECTEUR }}\"],\n  \"headers\": { \"X-Prospect-ID\": \"{{ $json.ID }}\", \"X-Relance-Type\": \"{{ $json.typeRelance }}\" }\n}",
+        "options": {}
+      },
+      "id": "n03-brevo-send",
+      "name": "Brevo — Envoyer relance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, 200],
+      "credentials": { "httpBasicAuth": { "id": "brevo-key", "name": "Brevo API Key" } }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": { "value": "={{ $vars.SPREADSHEET_ID }}" },
+        "sheetName": { "value": "PROSPECTS" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID":                     "={{ $json.ID }}",
+            "STATUT":                 "={{ $json.typeRelance }}",
+            "DATE_DERNIER_ENVOI":     "={{ new Date().toISOString().split('T')[0] }}",
+            "DATE_DERNIERE_ACTION":   "={{ new Date().toISOString() }}",
+            "RELANCE_1_OBJET":        "={{ $json.typeRelance === 'relance_1' ? $json.relance_objet : $json.RELANCE_1_OBJET }}",
+            "RELANCE_1_CORPS":        "={{ $json.typeRelance === 'relance_1' ? $json.relance_corps : $json.RELANCE_1_CORPS }}",
+            "RELANCE_2_OBJET":        "={{ $json.typeRelance === 'relance_2' ? $json.relance_objet : $json.RELANCE_2_OBJET }}",
+            "RELANCE_2_CORPS":        "={{ $json.typeRelance === 'relance_2' ? $json.relance_corps : $json.RELANCE_2_CORPS }}"
+          }
+        },
+        "matchingColumns": ["ID"],
+        "options": {}
+      },
+      "id": "n03-update-sheets",
+      "name": "MAJ statut relance dans Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1980, 200],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "google-sheets-creds", "name": "Google Sheets" } }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "value": "={{ $vars.SPREADSHEET_ID }}" },
+        "sheetName": { "value": "LOGS" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "TIMESTAMP":   "={{ new Date().toISOString() }}",
+            "WORKFLOW":    "03_relances",
+            "PROSPECT_ID": "={{ $json.ID }}",
+            "ACTION":      "={{ $json.typeRelance + '_envoyée' }}",
+            "STATUT":      "succès",
+            "DETAILS":     "={{ $json.ENTREPRISE }} | {{ $json.typeRelance }} | J+{{ $json.joursEcoules }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "n03-log",
+      "name": "Logger relance",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [2200, 200],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "google-sheets-creds", "name": "Google Sheets" } }
+    }
+  ],
+
+  "connections": {
+    "Déclencheur (Lun-Ven à 10h)": {
+      "main": [[{ "node": "Lire tous les prospects", "type": "main", "index": 0 }]]
+    },
+    "Lire tous les prospects": {
+      "main": [[{ "node": "Identifier prospects à relancer", "type": "main", "index": 0 }]]
+    },
+    "Identifier prospects à relancer": {
+      "main": [[{ "node": "Y a-t-il des relances ?", "type": "main", "index": 0 }]]
+    },
+    "Y a-t-il des relances ?": {
+      "main": [
+        [{ "node": "Traiter une relance à la fois", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Traiter une relance à la fois": {
+      "main": [[{ "node": "Préparer prompt selon type de relance", "type": "main", "index": 0 }]]
+    },
+    "Préparer prompt selon type de relance": {
+      "main": [
+        [{ "node": "Claude — Objet relance", "type": "main", "index": 0 }],
+        [{ "node": "Claude — Corps relance", "type": "main", "index": 0 }]
+      ]
+    },
+    "Claude — Objet relance": {
+      "main": [[{ "node": "Fusionner relance", "type": "main", "index": 0 }]]
+    },
+    "Claude — Corps relance": {
+      "main": [[{ "node": "Fusionner relance", "type": "main", "index": 0 }]]
+    },
+    "Fusionner relance": {
+      "main": [[{ "node": "Brevo — Envoyer relance", "type": "main", "index": 0 }]]
+    },
+    "Brevo — Envoyer relance": {
+      "main": [[{ "node": "MAJ statut relance dans Sheets", "type": "main", "index": 0 }]]
+    },
+    "MAJ statut relance dans Sheets": {
+      "main": [[{ "node": "Logger relance", "type": "main", "index": 0 }]]
+    }
+  },
+
+  "active": false,
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true },
+  "versionId": "03-relances-v1",
+  "id": "workflow-03-relances",
+  "tags": [{ "name": "prospection" }, { "name": "relances" }]
+}

@@ -1,0 +1,136 @@
+{
+  "_commentaire": "Fichier de configuration central — adaptez uniquement cette section pour un nouveau produit",
+
+  "produit": {
+    "nom": "ReplyShield",
+    "url": "https://replyshield.io",
+    "url_essai": "https://replyshield.io/essai-gratuit",
+    "pitch_court": "Répondez automatiquement à tous vos avis Google en 30 secondes grâce à l'IA",
+    "valeur_principale": "Économisez 5h/mois et augmentez votre note Google de 0.3 points en 3 mois",
+    "preuve_sociale": "Déjà utilisé par +500 établissements en France",
+    "essai": "14 jours gratuits, sans carte bancaire",
+    "expediteur_nom": "Manus",
+    "expediteur_email": "manus@replyshield.io"
+  },
+
+  "ciblage": {
+    "pays": ["France", "Belgique", "Suisse"],
+    "langues": ["fr"],
+
+    "villes": [
+      "Paris", "Lyon", "Marseille", "Bordeaux", "Nantes",
+      "Toulouse", "Lille", "Strasbourg", "Grenoble", "Nice",
+      "Montpellier", "Rennes", "Bruxelles", "Genève", "Lausanne"
+    ],
+
+    "secteurs": [
+      {
+        "id": "restauration",
+        "label": "Restauration",
+        "queries_google": ["restaurant", "brasserie", "pizzeria", "sushi", "kebab", "crêperie"],
+        "priorite": 5,
+        "score_min_avis": 200
+      },
+      {
+        "id": "beaute",
+        "label": "Beauté",
+        "queries_google": ["salon de coiffure", "institut beauté", "esthéticienne", "nail art", "barbier"],
+        "priorite": 5,
+        "score_min_avis": 100
+      },
+      {
+        "id": "automobile",
+        "label": "Automobile",
+        "queries_google": ["garage automobile", "carrosserie", "concession voiture", "contrôle technique"],
+        "priorite": 4,
+        "score_min_avis": 150
+      },
+      {
+        "id": "auto_ecole",
+        "label": "Auto-école",
+        "queries_google": ["auto-école", "école de conduite"],
+        "priorite": 4,
+        "score_min_avis": 100
+      },
+      {
+        "id": "sante",
+        "label": "Santé",
+        "queries_google": ["médecin généraliste", "dentiste", "kinésithérapeute", "ostéopathe", "cabinet médical"],
+        "priorite": 4,
+        "score_min_avis": 80
+      },
+      {
+        "id": "artisanat",
+        "label": "Artisanat",
+        "queries_google": ["plombier", "électricien", "maçon", "menuisier", "chauffagiste"],
+        "priorite": 4,
+        "score_min_avis": 80
+      },
+      {
+        "id": "hotellerie",
+        "label": "Hôtellerie",
+        "queries_google": ["hôtel", "chambre d'hôtes", "gîte", "auberge"],
+        "priorite": 3,
+        "score_min_avis": 100
+      },
+      {
+        "id": "services",
+        "label": "Services",
+        "queries_google": ["agence immobilière", "comptable", "avocat", "notaire", "laverie"],
+        "priorite": 5,
+        "score_min_avis": 50
+      },
+      {
+        "id": "sport_loisirs",
+        "label": "Sport & Loisirs",
+        "queries_google": ["salle de sport", "coach sportif", "yoga", "piscine", "centre de bien-être"],
+        "priorite": 3,
+        "score_min_avis": 80
+      },
+      {
+        "id": "commerce",
+        "label": "Commerce",
+        "queries_google": ["boutique vêtements", "fleuriste", "boulangerie", "pharmacie", "épicerie bio"],
+        "priorite": 3,
+        "score_min_avis": 100
+      }
+    ]
+  },
+
+  "scoring": {
+    "_commentaire": "Calcul du score de potentiel 0-100 pour chaque prospect",
+    "poids_pct_sans_reponse": 0.5,
+    "poids_nb_avis": 0.3,
+    "poids_note_google": 0.2,
+    "seuil_envoi_campagne": 60,
+    "seuil_prospect_chaud": 80
+  },
+
+  "campagne": {
+    "heure_envoi": "09:00",
+    "jours_envoi": ["tuesday", "wednesday"],
+    "delai_relance_1_jours": 7,
+    "delai_relance_2_jours": 14,
+    "delai_relance_3_jours": 21,
+    "nb_max_prospects_par_batch": 20,
+    "seuil_ouvertures_prospect_chaud": 3
+  },
+
+  "api_keys": {
+    "_commentaire": "Stocker les vraies clés dans N8N Credentials — pas ici",
+    "google_places_key": "DEPUIS_N8N_CREDENTIALS",
+    "anthropic_key": "DEPUIS_N8N_CREDENTIALS",
+    "brevo_key": "DEPUIS_N8N_CREDENTIALS"
+  },
+
+  "google_sheets": {
+    "_commentaire": "Remplacez par l'ID de votre Google Sheet après création via init_google_sheets.py",
+    "spreadsheet_id": "VOTRE_SPREADSHEET_ID",
+    "tabs": {
+      "prospects": "PROSPECTS",
+      "config": "CONFIG",
+      "stats": "STATS",
+      "logs": "LOGS"
+    }
+  }
+}

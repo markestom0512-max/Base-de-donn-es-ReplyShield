@@ -1,0 +1,267 @@
+{
+  "name": "02 — Campagne envoi (Sheets → Claude → Brevo)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 9 * * 2,3" }]
+        }
+      },
+      "id": "n02-trigger",
+      "name": "Déclencheur (Mar + Mer à 9h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "documentId": { "value": "={{ $vars.SPREADSHEET_ID }}" },
+        "sheetName": { "value": "PROSPECTS" },
+        "filters": {
+          "conditions": [
+            { "value1": "={{ $json.STATUT }}", "condition": "eq", "value2": "nouveau" }
+          ]
+        },
+        "options": { "returnAll": true }
+      },
+      "id": "n02-get-prospects",
+      "name": "Lire prospects 'nouveau' depuis Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [220, 300],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "google-sheets-creds", "name": "Google Sheets" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filtrer par score minimum et limiter le batch\nconst SCORE_MIN = 60;\nconst BATCH_MAX = 20;\n\nconst prospects = $input.all();\nconst filtres = prospects\n  .filter(p => {\n    const score = parseInt(p.json.SCORE || '0');\n    const email = p.json.EMAIL || '';\n    return score >= SCORE_MIN && email.includes('@');\n  })\n  .sort((a, b) => parseInt(b.json.SCORE || '0') - parseInt(a.json.SCORE || '0'))\n  .slice(0, BATCH_MAX);\n\nconsole.log(`${filtres.length} prospects sélectionnés sur ${prospects.length} totaux`);\nreturn filtres;"
+      },
+      "id": "n02-filter",
+      "name": "Filtrer et prioriser par score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "n02-split",
+      "name": "Traiter un prospect à la fois",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Charger le prompt depuis le fichier de templates\n// (En production, stocker les prompts dans N8N Variables)\nconst prospect = $input.first().json;\n\nconst secteur = prospect.SECTEUR || 'Services';\nconst specificites = {\n  'Restauration':   'Dans la restauration, les avis Google sont critiques pour le remplissage. Un avis négatif sans réponse coûte en moyenne 30% de clients potentiels.',\n  'Beauté':         'Dans la beauté, la confiance et l image sont primordiales. Les avis sans réponse donnent l impression d un salon qui ne se soucie pas de ses clientes.',\n  'Automobile':     'Dans l automobile, les clients lisent les avis avant chaque grosse décision d achat ou de réparation.',\n  'Auto-école':     'Dans les auto-écoles, les parents vérifient les avis avant d inscrire leurs enfants.',\n  'Santé':          'Dans la santé, répondre aux avis patients renforce la crédibilité professionnelle.',\n  'Artisanat':      'Dans l artisanat, les avis Google sont la principale source de nouveaux clients.',\n  'Hôtellerie':     'Dans l hôtellerie, Booking et Google valorisent les établissements qui répondent aux avis.',\n  'Services':       'Dans les services, les décideurs lisent les avis avant de signer.',\n  'Sport & Loisirs': 'Dans le sport et les loisirs, la communauté en ligne est très active.',\n  'Commerce':       'Dans le commerce de proximité, les avis Google influencent directement le trafic en magasin.'\n};\n\nconst spec = specificites[secteur] || '';\n\nconst promptObjet = `Génère 1 objet d'email percutant (max 60 caractères) pour prospecter ${prospect.PRENOM || 'le dirigeant'} qui dirige ${prospect.ENTREPRISE} (${secteur}) à ${prospect.VILLE}. Son établissement a ${prospect.NB_AVIS} avis Google dont ${prospect.AVIS_SANS_REPONSE} (${prospect.PCT_SANS_REPONSE}%) sans réponse. L'email propose ReplyShield : Répondez automatiquement à tous vos avis Google en 30 secondes grâce à l'IA. L'objet doit mentionner un chiffre réel et créer de l'urgence. Réponds uniquement avec l'objet, rien d'autre.`;\n\nconst promptCorps = `Rédige un email de prospection B2B pour ${prospect.PRENOM || 'le dirigeant'}, dirigeant de ${prospect.ENTREPRISE} (${secteur}) à ${prospect.VILLE}.\n\nContexte sectoriel : ${spec}\n\nChiffres réels de cet établissement :\n- ${prospect.NB_AVIS} avis Google au total\n- ${prospect.AVIS_SANS_REPONSE} avis sans réponse (${prospect.PCT_SANS_REPONSE}%)\n- Note Google actuelle : ${prospect.NOTE_GOOGLE}/5\n\nProduit à promouvoir : ReplyShield\nPitch : Répondez automatiquement à tous vos avis Google en 30 secondes grâce à l'IA\nOffre : 14 jours gratuits, sans carte bancaire\nLien : https://replyshield.io/essai-gratuit\n\nContraintes :\n- Commence par quelque chose de percutant qui cite un chiffre réel (pas 'Bonjour [Prenom]' classique)\n- 3 paragraphes max, 120 mots max\n- 1 seul call-to-action à la fin avec le lien\n- Ton : direct, humain, pas de jargon marketing\n- Signe avec 'L'équipe ReplyShield'\n\nRéponds uniquement avec le corps de l'email, sans objet.`;\n\nreturn [{ json: { ...prospect, promptObjet, promptCorps } }];"
+      },
+      "id": "n02-prepare-prompt",
+      "name": "Préparer les prompts Claude",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key",         "value": "={{ $credentials.password }}" },
+            { "name": "anthropic-version",  "value": "2023-06-01" },
+            { "name": "content-type",       "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-6\",\n  \"max_tokens\": 100,\n  \"system\": \"Tu es un expert en prospection B2B. Tu génères uniquement des objets d'email courts et percutants. Réponds toujours avec uniquement l'objet demandé, sans guillemets ni explication.\",\n  \"messages\": [{ \"role\": \"user\", \"content\": {{ JSON.stringify($json.promptObjet) }} }]\n}",
+        "options": {}
+      },
+      "id": "n02-claude-objet",
+      "name": "Claude — Générer objet email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 200],
+      "credentials": { "httpBasicAuth": { "id": "anthropic-key", "name": "Anthropic API Key" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key",         "value": "={{ $credentials.password }}" },
+            { "name": "anthropic-version",  "value": "2023-06-01" },
+            { "name": "content-type",       "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-6\",\n  \"max_tokens\": 500,\n  \"system\": \"Tu es un expert en prospection B2B. Tu rédiges des emails courts, directs et personnalisés. Tu n'utilises jamais de formules creuses. Tu vas droit au problème du prospect. Tes emails font maximum 150 mots. Tu n'inventes aucune donnée.\",\n  \"messages\": [{ \"role\": \"user\", \"content\": {{ JSON.stringify($('Préparer les prompts Claude').first().json.promptCorps) }} }]\n}",
+        "options": {}
+      },
+      "id": "n02-claude-corps",
+      "name": "Claude — Générer corps email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 400],
+      "credentials": { "httpBasicAuth": { "id": "anthropic-key", "name": "Anthropic API Key" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fusionner objet + corps générés par Claude\nconst prospect   = $('Préparer les prompts Claude').first().json;\nconst respObjet  = $('Claude — Générer objet email').first().json;\nconst respCorps  = $('Claude — Générer corps email').first().json;\n\nconst objet = respObjet.content?.[0]?.text?.trim() || `${prospect.PRENOM}, vos avis attendent une réponse`;\nconst corps = respCorps.content?.[0]?.text?.trim() || '';\n\nreturn [{ json: { ...prospect, email_objet: objet, email_corps: corps } }];"
+      },
+      "id": "n02-merge-email",
+      "name": "Fusionner objet + corps",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.brevo.com/v3/contacts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "api-key",      "value": "={{ $credentials.password }}" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"email\": \"{{ $json.EMAIL }}\",\n  \"updateEnabled\": true,\n  \"attributes\": {\n    \"PRENOM\":             \"{{ $json.PRENOM }}\",\n    \"NOM\":                \"{{ $json.NOM }}\",\n    \"ENTREPRISE\":         \"{{ $json.ENTREPRISE }}\",\n    \"SECTEUR\":            \"{{ $json.SECTEUR }}\",\n    \"VILLE\":              \"{{ $json.VILLE }}\",\n    \"NOTE_GOOGLE\":        {{ $json.NOTE_GOOGLE }},\n    \"NB_AVIS\":            {{ $json.NB_AVIS }},\n    \"AVIS_SANS_REPONSE\":  {{ $json.AVIS_SANS_REPONSE }},\n    \"PCT_SANS_REPONSE\":   {{ $json.PCT_SANS_REPONSE }},\n    \"SCORE\":              {{ $json.SCORE }},\n    \"PROSPECT_ID\":        \"{{ $json.ID }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "n02-brevo-contact",
+      "name": "Brevo — Créer/MAJ contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1540, 300],
+      "credentials": { "httpBasicAuth": { "id": "brevo-key", "name": "Brevo API Key" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.brevo.com/v3/smtp/email",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "api-key",      "value": "={{ $credentials.password }}" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"sender\": { \"name\": \"Manus de ReplyShield\", \"email\": \"manus@replyshield.io\" },\n  \"to\": [{ \"email\": \"{{ $('Fusionner objet + corps').first().json.EMAIL }}\", \"name\": \"{{ $('Fusionner objet + corps').first().json.PRENOM }} {{ $('Fusionner objet + corps').first().json.NOM }}\" }],\n  \"subject\": \"{{ $('Fusionner objet + corps').first().json.email_objet }}\",\n  \"htmlContent\": \"<html><body style='font-family:Arial,sans-serif;font-size:15px;color:#333;max-width:600px;margin:auto;padding:20px;line-height:1.6;'>{{ $('Fusionner objet + corps').first().json.email_corps.replace(/\\n/g,'<br>') }}<br><br><hr style='border:none;border-top:1px solid #eee;margin:20px 0;'><p style='font-size:12px;color:#999;'>Vous recevez cet email car vous êtes un professionnel dans {{ $('Fusionner objet + corps').first().json.SECTEUR }}.<br><a href='https://replyshield.io/desinscription?id={{ $('Fusionner objet + corps').first().json.ID }}' style='color:#999;'>Se désinscrire</a></p></body></html>\",\n  \"tags\": [\"prospection-initiale\", \"{{ $('Fusionner objet + corps').first().json.SECTEUR }}\"],\n  \"headers\": { \"X-Prospect-ID\": \"{{ $('Fusionner objet + corps').first().json.ID }}\" }\n}",
+        "options": {}
+      },
+      "id": "n02-brevo-send",
+      "name": "Brevo — Envoyer email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, 300],
+      "credentials": { "httpBasicAuth": { "id": "brevo-key", "name": "Brevo API Key" } }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": { "value": "={{ $vars.SPREADSHEET_ID }}" },
+        "sheetName": { "value": "PROSPECTS" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID":                   "={{ $('Fusionner objet + corps').first().json.ID }}",
+            "STATUT":               "contacté",
+            "DATE_DERNIER_ENVOI":   "={{ new Date().toISOString().split('T')[0] }}",
+            "DATE_DERNIERE_ACTION": "={{ new Date().toISOString() }}",
+            "EMAIL_OBJET":          "={{ $('Fusionner objet + corps').first().json.email_objet }}",
+            "EMAIL_CORPS":          "={{ $('Fusionner objet + corps').first().json.email_corps }}"
+          }
+        },
+        "matchingColumns": ["ID"],
+        "options": {}
+      },
+      "id": "n02-update-sheets",
+      "name": "MAJ statut → 'contacté' dans Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1980, 300],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "google-sheets-creds", "name": "Google Sheets" } }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "value": "={{ $vars.SPREADSHEET_ID }}" },
+        "sheetName": { "value": "LOGS" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "TIMESTAMP":   "={{ new Date().toISOString() }}",
+            "WORKFLOW":    "02_campagne",
+            "PROSPECT_ID": "={{ $('Fusionner objet + corps').first().json.ID }}",
+            "ACTION":      "email_envoyé",
+            "STATUT":      "succès",
+            "DETAILS":     "={{ $('Fusionner objet + corps').first().json.ENTREPRISE }} | {{ $('Fusionner objet + corps').first().json.EMAIL }} | objet: {{ $('Fusionner objet + corps').first().json.email_objet }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "n02-log",
+      "name": "Logger envoi",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [2200, 300],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "google-sheets-creds", "name": "Google Sheets" } }
+    }
+  ],
+
+  "connections": {
+    "Déclencheur (Mar + Mer à 9h)": {
+      "main": [[{ "node": "Lire prospects 'nouveau' depuis Sheets", "type": "main", "index": 0 }]]
+    },
+    "Lire prospects 'nouveau' depuis Sheets": {
+      "main": [[{ "node": "Filtrer et prioriser par score", "type": "main", "index": 0 }]]
+    },
+    "Filtrer et prioriser par score": {
+      "main": [[{ "node": "Traiter un prospect à la fois", "type": "main", "index": 0 }]]
+    },
+    "Traiter un prospect à la fois": {
+      "main": [[{ "node": "Préparer les prompts Claude", "type": "main", "index": 0 }]]
+    },
+    "Préparer les prompts Claude": {
+      "main": [
+        [{ "node": "Claude — Générer objet email", "type": "main", "index": 0 }],
+        [{ "node": "Claude — Générer corps email", "type": "main", "index": 0 }]
+      ]
+    },
+    "Claude — Générer objet email": {
+      "main": [[{ "node": "Fusionner objet + corps", "type": "main", "index": 0 }]]
+    },
+    "Claude — Générer corps email": {
+      "main": [[{ "node": "Fusionner objet + corps", "type": "main", "index": 0 }]]
+    },
+    "Fusionner objet + corps": {
+      "main": [[{ "node": "Brevo — Créer/MAJ contact", "type": "main", "index": 0 }]]
+    },
+    "Brevo — Créer/MAJ contact": {
+      "main": [[{ "node": "Brevo — Envoyer email", "type": "main", "index": 0 }]]
+    },
+    "Brevo — Envoyer email": {
+      "main": [[{ "node": "MAJ statut → 'contacté' dans Sheets", "type": "main", "index": 0 }]]
+    },
+    "MAJ statut → 'contacté' dans Sheets": {
+      "main": [[{ "node": "Logger envoi", "type": "main", "index": 0 }]]
+    }
+  },
+
+  "active": false,
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true },
+  "versionId": "02-campagne-v1",
+  "id": "workflow-02-campagne",
+  "tags": [{ "name": "prospection" }, { "name": "campagne" }, { "name": "claude-ai" }]
+}
