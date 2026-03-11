@@ -5,10 +5,24 @@
 'use strict';
 
 // ── Init Supabase ─────────────────────────────────────────
-const sb = window.supabase.createClient(
-  window.SUPABASE_URL,
-  window.SUPABASE_ANON_KEY
-);
+const CONFIG_OK = window.SUPABASE_URL && !window.SUPABASE_URL.includes('VOTRE_PROJECT_ID');
+
+let sb;
+try {
+  if (!window.supabase) throw new Error('La librairie Supabase ne s\'est pas chargée. Vérifiez votre connexion internet.');
+  if (!CONFIG_OK)       throw new Error('Remplissez SUPABASE_URL et SUPABASE_ANON_KEY dans web/config.js avant d\'utiliser l\'admin.');
+  sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+} catch (e) {
+  document.body.innerHTML = `
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a0b0f;font-family:Inter,sans-serif;padding:24px">
+      <div style="background:#111318;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:36px;max-width:460px;width:100%;text-align:center">
+        <div style="font-size:1.4rem;font-weight:800;margin-bottom:16px;color:#e8eaf0">Reply<span style="color:#6c63ff">Shield</span></div>
+        <p style="color:#ef4444;font-size:.95rem;line-height:1.6;margin-bottom:20px">${e.message}</p>
+        <p style="color:#8b90a0;font-size:.82rem">Consultez la console (F12) pour plus de détails.</p>
+      </div>
+    </div>`;
+  throw e;
+}
 
 // ── State ─────────────────────────────────────────────────
 let currentTab    = 'contacts';
@@ -103,10 +117,14 @@ const adminEmail  = document.getElementById('adminEmail');
 const logoutBtn   = document.getElementById('logoutBtn');
 
 async function checkSession() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    showDashboard(session.user.email);
-  } else {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      showDashboard(session.user.email);
+    } else {
+      showLogin();
+    }
+  } catch {
     showLogin();
   }
 }
@@ -129,19 +147,30 @@ loginForm.addEventListener('submit', async (e) => {
   loginBtn.textContent = 'Connexion…';
   loginBtn.disabled = true;
 
-  const { error } = await sb.auth.signInWithPassword({
-    email:    document.getElementById('loginEmail').value.trim(),
-    password: document.getElementById('loginPassword').value,
-  });
+  try {
+    const { error } = await sb.auth.signInWithPassword({
+      email:    document.getElementById('loginEmail').value.trim(),
+      password: document.getElementById('loginPassword').value,
+    });
 
-  if (error) {
-    loginError.textContent = 'Identifiants incorrects. Vérifiez votre email et mot de passe.';
+    if (error) throw error;
+
+    const { data: { user } } = await sb.auth.getUser();
+    showDashboard(user.email);
+  } catch (err) {
+    const msg = err.message || '';
+    if (msg.includes('Invalid login') || msg.includes('invalid_grant')) {
+      loginError.textContent = 'Email ou mot de passe incorrect.';
+    } else if (msg.includes('Email not confirmed')) {
+      loginError.textContent = 'Email non confirmé. Vérifiez votre boîte mail ou désactivez la confirmation dans Supabase > Authentication > Providers > Email.';
+    } else if (msg.includes('fetch') || msg.includes('network') || msg.includes('Failed')) {
+      loginError.textContent = 'Impossible de contacter Supabase. Vérifiez votre SUPABASE_URL dans config.js et votre connexion internet.';
+    } else {
+      loginError.textContent = `Erreur : ${msg}`;
+    }
     loginError.hidden = false;
     loginBtn.textContent = 'Se connecter';
     loginBtn.disabled = false;
-  } else {
-    const { data: { user } } = await sb.auth.getUser();
-    showDashboard(user.email);
   }
 });
 
