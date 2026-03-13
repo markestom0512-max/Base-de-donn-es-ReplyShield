@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="pageTitle">Aperçu de site — ReplyShield</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="preview.css" />
+</head>
+<body>
+
+  <!-- ── BANNIÈRE REPLYSHIELD ── -->
+  <div class="rs-banner">
+    <div class="rs-banner-inner">
+      <div class="rs-banner-left">
+        <span class="rs-brand">Reply<strong>Shield</strong></span>
+        <span class="rs-badge">Aperçu gratuit</span>
+      </div>
+      <p class="rs-banner-text">
+        Ce site a été créé spécialement pour <strong id="bannerNom">votre établissement</strong> — en quelques minutes, grâce à l'IA.
+      </p>
+      <a href="mailto:contact@replyshield.io?subject=Je veux activer mon site" class="rs-banner-cta">
+        Activer ce site →
+      </a>
+    </div>
+  </div>
+
+  <!-- ── SITE GÉNÉRÉ ── -->
+  <div id="preview-site">
+
+    <!-- Navbar -->
+    <nav class="pv-nav" id="pvNav">
+      <div class="pv-nav-inner">
+        <span class="pv-logo" id="pvLogo">Chargement…</span>
+        <ul class="pv-nav-links">
+          <li><a href="#services">Services</a></li>
+          <li><a href="#avis">Avis</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+        <a href="#contact" class="pv-nav-cta">Prendre RDV</a>
+      </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="pv-hero" id="pvHero">
+      <div class="pv-hero-inner">
+        <div class="pv-hero-text">
+          <div class="pv-hero-tag" id="pvTag">Secteur</div>
+          <h1 class="pv-hero-title" id="pvTitle">Titre principal</h1>
+          <p class="pv-hero-sub" id="pvSub">Sous-titre accrocheur</p>
+          <div class="pv-hero-stats" id="pvStats">
+            <div class="pv-stat">
+              <span class="pv-stat-value" id="pvNote">—</span>
+              <span class="pv-stat-label">Note Google</span>
+            </div>
+            <div class="pv-stat-sep"></div>
+            <div class="pv-stat">
+              <span class="pv-stat-value" id="pvNbAvis">—</span>
+              <span class="pv-stat-label">Avis clients</span>
+            </div>
+            <div class="pv-stat-sep"></div>
+            <div class="pv-stat">
+              <span class="pv-stat-value" id="pvVille">—</span>
+              <span class="pv-stat-label">Localisation</span>
+            </div>
+          </div>
+          <div class="pv-hero-btns">
+            <a href="#contact" class="pv-btn-primary">Nous contacter</a>
+            <a href="#services" class="pv-btn-secondary">Nos services</a>
+          </div>
+        </div>
+        <div class="pv-hero-visual" id="pvHeroVisual">
+          <div class="pv-hero-icon" id="pvHeroIcon">🏢</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Services -->
+    <section class="pv-services" id="services">
+      <div class="pv-section-inner">
+        <h2 class="pv-section-title">Nos services</h2>
+        <p class="pv-section-sub" id="pvServicesSub">Ce que nous proposons</p>
+        <div class="pv-services-grid" id="pvServicesGrid">
+          <!-- Généré par JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Avis Google (démo ReplyShield) -->
+    <section class="pv-reviews" id="avis">
+      <div class="pv-section-inner">
+        <div class="pv-reviews-header">
+          <h2 class="pv-section-title">Avis Google</h2>
+          <div class="pv-reviews-note">
+            <div class="pv-stars">★★★★★</div>
+            <span id="pvReviewsNote">4.2 / 5</span>
+            <span class="pv-reviews-count" id="pvReviewsCount">— avis</span>
+          </div>
+        </div>
+
+        <div class="pv-reviews-grid" id="pvReviewsGrid">
+          <!-- Généré par JS -->
+        </div>
+
+        <div class="rs-feature-badge">
+          <span class="rs-feature-icon">🤖</span>
+          <div>
+            <strong>Réponses générées automatiquement par ReplyShield</strong>
+            <p>Chaque avis reçoit une réponse personnalisée en moins de 5 minutes, 24h/24.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contact -->
+    <section class="pv-contact" id="contact">
+      <div class="pv-section-inner pv-contact-inner">
+        <div class="pv-contact-info">
+          <h2 class="pv-section-title pv-section-title--light">Nous trouver</h2>
+          <div class="pv-contact-items" id="pvContactItems">
+            <!-- Généré par JS -->
+          </div>
+        </div>
+        <div class="pv-contact-form">
+          <h3>Envoyez-nous un message</h3>
+          <form class="pv-form" onsubmit="return false;">
+            <input type="text" placeholder="Votre nom" class="pv-input" />
+            <input type="email" placeholder="Votre email" class="pv-input" />
+            <textarea placeholder="Votre message…" class="pv-textarea" rows="4"></textarea>
+            <button type="submit" class="pv-btn-primary pv-form-btn">Envoyer</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="pv-footer">
+      <div class="pv-footer-inner">
+        <span class="pv-logo" id="pvFooterLogo">—</span>
+        <p id="pvFooterCity">—</p>
+        <p class="pv-footer-credit">
+          Site créé par <a href="https://replyshield.io" target="_blank">ReplyShield</a>
+        </p>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- ── BANDEAU BAS REPLYSHIELD ── -->
+  <div class="rs-footer-cta">
+    <div class="rs-footer-cta-inner">
+      <div>
+        <strong>Vous souhaitez activer ce site pour votre établissement ?</strong>
+        <p>ReplyShield crée votre site web et gère vos avis Google automatiquement.</p>
+      </div>
+      <a href="mailto:contact@replyshield.io?subject=Activation site web ReplyShield" class="rs-footer-btn">
+        Obtenir mon vrai site →
+      </a>
+    </div>
+  </div>
+
+  <script src="preview.js"></script>
+</body>
+</html>
