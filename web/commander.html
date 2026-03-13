@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Commandez votre site web — ReplyShield</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="commander.css" />
+</head>
+<body>
+
+  <!-- ── NAV ── -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="nav-logo">Reply<span>Shield</span></a>
+      <ul class="nav-links">
+        <li><a href="index.html">Accueil</a></li>
+        <li><a href="#offres">Nos offres</a></li>
+        <li><a href="#brief">Commander</a></li>
+      </ul>
+      <a href="#brief" class="nav-cta">Démarrer →</a>
+    </div>
+  </nav>
+
+  <!-- ── HERO ── -->
+  <section class="cmd-hero">
+    <div class="cmd-hero-inner">
+      <div class="cmd-badge">Site web livré en 48h</div>
+      <h1 class="cmd-hero-title">
+        Votre site web professionnel,<br />
+        <span>prêt en 48 heures</span>
+      </h1>
+      <p class="cmd-hero-sub">
+        Vous avez vu l'aperçu — maintenant, transformez-le en vrai site.
+        Choisissez votre formule, remplissez le brief en 2 minutes, on s'occupe du reste.
+      </p>
+      <div class="cmd-hero-trust">
+        <div class="cmd-trust-item">✓ Hébergement inclus 1 an</div>
+        <div class="cmd-trust-item">✓ Nom de domaine offert</div>
+        <div class="cmd-trust-item">✓ Livraison sous 48h</div>
+        <div class="cmd-trust-item">✓ Modifications illimitées (30 jours)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── OFFRES ── -->
+  <section class="cmd-offres" id="offres">
+    <div class="cmd-section-inner">
+      <h2 class="cmd-section-title">Choisissez votre formule</h2>
+      <p class="cmd-section-sub">Deux options adaptées à votre budget et vos ambitions</p>
+
+      <div class="cmd-cards">
+
+        <!-- Essentiel -->
+        <div class="cmd-card" id="card-essentiel">
+          <div class="cmd-card-header">
+            <div class="cmd-card-name">Essentiel</div>
+            <div class="cmd-card-price">
+              <span class="cmd-price-amount">490 €</span>
+              <span class="cmd-price-note">paiement unique</span>
+            </div>
+          </div>
+          <p class="cmd-card-desc">
+            Un site professionnel, rapide et efficace pour vous démarquer en ligne dès maintenant.
+          </p>
+          <ul class="cmd-card-features">
+            <li>✓ Site 1 page (OneScroll) — design sectoriel</li>
+            <li>✓ Personnalisation complète (logo, couleurs, textes)</li>
+            <li>✓ Formulaire de contact intégré</li>
+            <li>✓ Responsive mobile / tablette</li>
+            <li>✓ Hébergement + domaine inclus (1 an)</li>
+            <li>✓ Livraison sous 48h</li>
+            <li>✓ Modifications illimitées pendant 30 jours</li>
+            <li class="muted">— SEO avancé</li>
+            <li class="muted">— Google Business synchronisé</li>
+            <li class="muted">— Multipage</li>
+          </ul>
+          <button class="cmd-card-cta" onclick="choisirOffre('essentiel')">
+            Choisir Essentiel →
+          </button>
+        </div>
+
+        <!-- Premium -->
+        <div class="cmd-card cmd-card--featured" id="card-premium">
+          <div class="cmd-card-badge">Recommandé</div>
+          <div class="cmd-card-header">
+            <div class="cmd-card-name">Premium</div>
+            <div class="cmd-card-price">
+              <span class="cmd-price-amount">1 200 €</span>
+              <span class="cmd-price-note">paiement unique</span>
+            </div>
+          </div>
+          <p class="cmd-card-desc">
+            Un site sur mesure avec SEO local optimisé et intégration Google Business pour dominer votre secteur.
+          </p>
+          <ul class="cmd-card-features">
+            <li>✓ Site multipage (5 pages) — design custom</li>
+            <li>✓ Personnalisation complète (logo, couleurs, textes)</li>
+            <li>✓ Formulaire de contact + prise de RDV</li>
+            <li>✓ Responsive mobile / tablette</li>
+            <li>✓ Hébergement + domaine inclus (1 an)</li>
+            <li>✓ Livraison sous 7 jours</li>
+            <li>✓ Modifications illimitées pendant 60 jours</li>
+            <li>✓ <strong>SEO local optimisé</strong> (Google Maps)</li>
+            <li>✓ <strong>Google Business synchronisé</strong></li>
+            <li>✓ <strong>ReplyShield inclus 3 mois</strong> (réponses IA)</li>
+          </ul>
+          <button class="cmd-card-cta cmd-card-cta--featured" onclick="choisirOffre('premium')">
+            Choisir Premium →
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── BRIEF ── -->
+  <section class="cmd-brief" id="brief">
+    <div class="cmd-section-inner">
+      <h2 class="cmd-section-title">Votre brief en 2 minutes</h2>
+      <p class="cmd-section-sub">Remplissez ce formulaire — nous vous recontactons sous 24h pour valider et lancer.</p>
+
+      <form class="cmd-form" id="cmdForm" onsubmit="submitBrief(event)">
+
+        <!-- Offre choisie -->
+        <div class="cmd-form-offre-selector">
+          <label class="cmd-form-label">Formule choisie</label>
+          <div class="cmd-offre-btns">
+            <button type="button" class="cmd-offre-btn" id="btn-essentiel" onclick="setOffre('essentiel')">
+              Essentiel — 490 €
+            </button>
+            <button type="button" class="cmd-offre-btn" id="btn-premium" onclick="setOffre('premium')">
+              Premium — 1 200 €
+            </button>
+          </div>
+          <input type="hidden" id="offreChoisie" value="essentiel" />
+        </div>
+
+        <div class="cmd-form-row">
+          <div class="cmd-form-group">
+            <label class="cmd-form-label" for="fNom">Votre prénom *</label>
+            <input type="text" id="fNom" class="cmd-form-input" placeholder="Jean" required />
+          </div>
+          <div class="cmd-form-group">
+            <label class="cmd-form-label" for="fEntreprise">Nom de votre établissement *</label>
+            <input type="text" id="fEntreprise" class="cmd-form-input" placeholder="Le Bistrot du Coin" required />
+          </div>
+        </div>
+
+        <div class="cmd-form-row">
+          <div class="cmd-form-group">
+            <label class="cmd-form-label" for="fEmail">Email *</label>
+            <input type="email" id="fEmail" class="cmd-form-input" placeholder="jean@monrestaurant.fr" required />
+          </div>
+          <div class="cmd-form-group">
+            <label class="cmd-form-label" for="fTel">Téléphone *</label>
+            <input type="tel" id="fTel" class="cmd-form-input" placeholder="06 12 34 56 78" required />
+          </div>
+        </div>
+
+        <div class="cmd-form-row">
+          <div class="cmd-form-group">
+            <label class="cmd-form-label" for="fSecteur">Secteur d'activité</label>
+            <select id="fSecteur" class="cmd-form-input">
+              <option value="restauration">Restauration</option>
+              <option value="beaute">Beauté / Bien-être</option>
+              <option value="automobile">Automobile / Garage</option>
+              <option value="auto_ecole">Auto-école</option>
+              <option value="sante">Santé / Médical</option>
+              <option value="artisanat">Artisanat / BTP</option>
+              <option value="hotellerie">Hôtellerie</option>
+              <option value="services">Services professionnels</option>
+              <option value="autre">Autre</option>
+            </select>
+          </div>
+          <div class="cmd-form-group">
+            <label class="cmd-form-label" for="fVille">Ville</label>
+            <input type="text" id="fVille" class="cmd-form-input" placeholder="Lyon" />
+          </div>
+        </div>
+
+        <div class="cmd-form-group">
+          <label class="cmd-form-label">Vous disposez déjà de :</label>
+          <div class="cmd-checkboxes">
+            <label class="cmd-checkbox">
+              <input type="checkbox" id="hasLogo" /> Un logo
+            </label>
+            <label class="cmd-checkbox">
+              <input type="checkbox" id="hasPhotos" /> Des photos de l'établissement
+            </label>
+            <label class="cmd-checkbox">
+              <input type="checkbox" id="hasSite" /> Un site existant à moderniser
+            </label>
+          </div>
+        </div>
+
+        <div class="cmd-form-group">
+          <label class="cmd-form-label" for="fMessage">
+            Informations complémentaires
+            <span class="cmd-label-hint">(optionnel — horaires, description, style souhaité…)</span>
+          </label>
+          <textarea id="fMessage" class="cmd-form-input cmd-form-textarea" rows="4"
+            placeholder="Ex : Restaurant gastronomique ouvert du mardi au dimanche, style moderne et épuré, couleurs bleu marine et or…"></textarea>
+        </div>
+
+        <div class="cmd-form-group">
+          <label class="cmd-form-label" for="fSiteActuel">URL de votre site actuel (si vous en avez un)</label>
+          <input type="url" id="fSiteActuel" class="cmd-form-input" placeholder="https://monsite.fr" />
+        </div>
+
+        <p id="cmdError" class="cmd-form-error" hidden></p>
+        <p id="cmdSuccess" class="cmd-form-success" hidden></p>
+
+        <button type="submit" class="cmd-submit-btn" id="cmdSubmitBtn">
+          Envoyer mon brief →
+        </button>
+
+        <p class="cmd-form-reassurance">
+          Pas d'engagement immédiat — nous vous recontactons sous 24h pour valider ensemble avant tout paiement.
+        </p>
+
+      </form>
+    </div>
+  </section>
+
+  <!-- ── FAQ ── -->
+  <section class="cmd-faq">
+    <div class="cmd-section-inner">
+      <h2 class="cmd-section-title">Questions fréquentes</h2>
+      <div class="cmd-faq-grid">
+        <div class="cmd-faq-item">
+          <h3>Que se passe-t-il après l'envoi du brief ?</h3>
+          <p>Nous vous recontactons sous 24h pour un échange de 15 min, puis nous démarrons la création. Aucun paiement avant votre validation du devis.</p>
+        </div>
+        <div class="cmd-faq-item">
+          <h3>Puis-je modifier le site après livraison ?</h3>
+          <p>Oui — modifications illimitées pendant 30 jours (60 jours en Premium). Ensuite, maintenance disponible à partir de 29€/mois.</p>
+        </div>
+        <div class="cmd-faq-item">
+          <h3>L'hébergement est-il vraiment inclus ?</h3>
+          <p>Oui, hébergement + nom de domaine inclus pour 1 an. Renouvellement à 99€/an ensuite, ou vous gérez votre propre hébergeur.</p>
+        </div>
+        <div class="cmd-faq-item">
+          <h3>Est-ce que ReplyShield (avis Google) est inclus ?</h3>
+          <p>En formule Premium, oui — 3 mois de réponses automatiques aux avis Google offerts. En Essentiel, disponible en option à partir de 49€/mois.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ── -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <p class="footer-logo">Reply<span>Shield</span></p>
+      <p>Des questions ? <a href="mailto:contact@replyshield.io">contact@replyshield.io</a></p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="config.js"></script>
+  <script src="commander.js"></script>
+</body>
+</html>

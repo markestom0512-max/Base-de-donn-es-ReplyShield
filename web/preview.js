@@ -5,6 +5,51 @@
 //  sans_rep, telephone, adresse, prenom
 // ============================================================
 
+// ── VARIANTES DE STYLE PAR SECTEUR ───────────────────────────
+// Chaque secteur propose 3 styles : moderne (défaut), élégant, lumineux
+const SECTOR_VARIANTS = {
+  restauration: [
+    { label: 'Chaleureux',  color: '#C0392B', gradient: 'linear-gradient(135deg, #1a0600 0%, #3d1000 100%)' },
+    { label: 'Élégant',     color: '#2C3E50', gradient: 'linear-gradient(135deg, #0a0d10 0%, #1a2530 100%)' },
+    { label: 'Méditerranée',color: '#1A7F5A', gradient: 'linear-gradient(135deg, #001a10 0%, #003320 100%)' }
+  ],
+  beaute: [
+    { label: 'Rose',        color: '#8E44AD', gradient: 'linear-gradient(135deg, #1a0010 0%, #3d0030 100%)' },
+    { label: 'Nude',        color: '#A0522D', gradient: 'linear-gradient(135deg, #1a0d00 0%, #3d1800 100%)' },
+    { label: 'Moderne',     color: '#1565C0', gradient: 'linear-gradient(135deg, #000d1a 0%, #001530 100%)' }
+  ],
+  automobile: [
+    { label: 'Bleu acier',  color: '#1565C0', gradient: 'linear-gradient(135deg, #000d1a 0%, #001530 100%)' },
+    { label: 'Graphite',    color: '#37474F', gradient: 'linear-gradient(135deg, #0a0d10 0%, #1a252d 100%)' },
+    { label: 'Racing',      color: '#B71C1C', gradient: 'linear-gradient(135deg, #1a0000 0%, #3d0000 100%)' }
+  ],
+  auto_ecole: [
+    { label: 'Vert',        color: '#2E7D32', gradient: 'linear-gradient(135deg, #001a00 0%, #003300 100%)' },
+    { label: 'Orange',      color: '#E65100', gradient: 'linear-gradient(135deg, #1a0500 0%, #3d1200 100%)' },
+    { label: 'Bleu',        color: '#0277BD', gradient: 'linear-gradient(135deg, #000d1a 0%, #001a30 100%)' }
+  ],
+  sante: [
+    { label: 'Teal',        color: '#00838F', gradient: 'linear-gradient(135deg, #001a1c 0%, #003336 100%)' },
+    { label: 'Bleu nuit',   color: '#1565C0', gradient: 'linear-gradient(135deg, #000d1a 0%, #001530 100%)' },
+    { label: 'Vert sauge',  color: '#388E3C', gradient: 'linear-gradient(135deg, #001a00 0%, #003300 100%)' }
+  ],
+  artisanat: [
+    { label: 'Bois',        color: '#7B3F00', gradient: 'linear-gradient(135deg, #1a0d00 0%, #3d1f00 100%)' },
+    { label: 'Ardoise',     color: '#455A64', gradient: 'linear-gradient(135deg, #0a0d10 0%, #1a252d 100%)' },
+    { label: 'Terracotta',  color: '#BF360C', gradient: 'linear-gradient(135deg, #1a0500 0%, #3d1000 100%)' }
+  ],
+  hotellerie: [
+    { label: 'Violet',      color: '#6A1B9A', gradient: 'linear-gradient(135deg, #0d001a 0%, #20003d 100%)' },
+    { label: 'Or',          color: '#B8860B', gradient: 'linear-gradient(135deg, #1a1000 0%, #3d2800 100%)' },
+    { label: 'Minuit',      color: '#1A237E', gradient: 'linear-gradient(135deg, #00001a 0%, #00003d 100%)' }
+  ],
+  services: [
+    { label: 'Gris bleu',   color: '#37474F', gradient: 'linear-gradient(135deg, #0a0d10 0%, #1a252d 100%)' },
+    { label: 'Indigo',      color: '#283593', gradient: 'linear-gradient(135deg, #00001a 0%, #00003d 100%)' },
+    { label: 'Vert forêt',  color: '#1B5E20', gradient: 'linear-gradient(135deg, #001a00 0%, #003300 100%)' }
+  ]
+};
+
 const SECTORS = {
   restauration: {
     label: 'Restaurant',
@@ -438,5 +483,108 @@ function render() {
   }
 }
 
+// ── LIEN COMMANDER ───────────────────────────────────────────
+function buildCommanderUrl(params, secteurId) {
+  const p = new URLSearchParams({
+    nom:     params.nom,
+    secteur: secteurId,
+    ville:   params.ville,
+    prenom:  params.prenom,
+    offre:   'essentiel'
+  });
+  return `commander.html?${p.toString()}`;
+}
+
+// ── SÉLECTEUR DE STYLES ──────────────────────────────────────
+function initStylePicker(params, secteurId) {
+  const variants  = SECTOR_VARIANTS[secteurId] || SECTOR_VARIANTS['services'];
+  const toggle    = document.getElementById('stylePickerToggle');
+  const panel     = document.getElementById('stylePickerPanel');
+  const optionsEl = document.getElementById('stylePickerOptions');
+
+  // Construire les boutons de style
+  optionsEl.innerHTML = variants.map((v, i) => `
+    <button class="style-option ${i === (params.style || 0) ? 'active' : ''}"
+            data-index="${i}"
+            style="background:${v.color}">
+      ${v.label}
+    </button>
+  `).join('');
+
+  // Toggle panel
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    panel.hidden = !panel.hidden;
+  });
+  document.addEventListener('click', () => { panel.hidden = true; });
+  panel.addEventListener('click', (e) => e.stopPropagation());
+
+  // Choix d'un style
+  optionsEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.style-option');
+    if (!btn) return;
+    const idx = parseInt(btn.dataset.index);
+    applyStyle(variants[idx], idx, params, secteurId);
+    panel.hidden = true;
+
+    // Mettre à jour URL sans recharger
+    const url = new URL(window.location.href);
+    url.searchParams.set('style', idx);
+    window.history.replaceState({}, '', url.toString());
+
+    // Mettre à jour les boutons actifs
+    optionsEl.querySelectorAll('.style-option').forEach((b, i) => {
+      b.classList.toggle('active', i === idx);
+    });
+  });
+}
+
+function applyStyle(variant, idx, params, secteurId) {
+  document.documentElement.style.setProperty('--pv-primary', variant.color);
+  document.getElementById('pvHero').style.background        = variant.gradient;
+  document.querySelector('.pv-contact').style.background    = variant.gradient;
+
+  // Mettre à jour le lien commander avec le style
+  const cmdLink = document.getElementById('rsFooterCommander');
+  if (cmdLink) {
+    const p = new URLSearchParams({
+      nom: params.nom, secteur: secteurId, ville: params.ville,
+      prenom: params.prenom, offre: 'essentiel', style: idx
+    });
+    cmdLink.href = `commander.html?${p.toString()}`;
+  }
+  // Mettre à jour le lien bannière
+  const bannerCta = document.querySelector('.rs-banner-cta');
+  if (bannerCta) {
+    const p = new URLSearchParams({
+      nom: params.nom, secteur: secteurId, ville: params.ville,
+      prenom: params.prenom, offre: 'essentiel', style: idx
+    });
+    bannerCta.href = `commander.html?${p.toString()}`;
+  }
+}
+
 // ── INIT ─────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', render);
+document.addEventListener('DOMContentLoaded', () => {
+  render();
+
+  const params   = getParams();
+  const secteurId = (new URLSearchParams(window.location.search)).get('secteur') || 'restauration';
+
+  // Appliquer le style URL si présent
+  const styleIdx = parseInt((new URLSearchParams(window.location.search)).get('style') || '0');
+  const variants  = SECTOR_VARIANTS[secteurId] || SECTOR_VARIANTS['services'];
+  if (styleIdx > 0 && variants[styleIdx]) {
+    applyStyle(variants[styleIdx], styleIdx, params, secteurId);
+  }
+
+  // Lien "Commander" dans bannière et bandeau bas
+  const commanderUrl = buildCommanderUrl(params, secteurId);
+  const bannerCta    = document.querySelector('.rs-banner-cta');
+  const footerBtn    = document.getElementById('rsFooterCommander');
+  if (bannerCta) bannerCta.href = commanderUrl;
+  if (footerBtn) footerBtn.href = commanderUrl;
+
+  // Initialiser le sélecteur de styles
+  initStylePicker({ ...params, style: styleIdx }, secteurId);
+});
