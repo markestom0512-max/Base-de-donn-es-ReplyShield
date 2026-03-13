@@ -74,10 +74,12 @@
       <div class="tabs">
         <button class="tab active" data-tab="contacts">Contacts</button>
         <button class="tab" data-tab="devis">Demandes de devis</button>
+        <button class="tab" data-tab="avis">Avis Google 🤖</button>
+        <button class="tab" data-tab="clients">Clients ReplyShield</button>
       </div>
 
-      <!-- Filters -->
-      <div class="filters">
+      <!-- Filters (contacts + devis) -->
+      <div class="filters" id="filtersDefault">
         <input type="text" id="searchInput" class="search-input" placeholder="Rechercher par nom, email, entreprise…" />
         <select id="statusFilter" class="status-filter">
           <option value="">Tous les statuts</option>
@@ -88,14 +90,66 @@
         <button id="refreshBtn" class="btn-refresh" title="Rafraîchir">↺</button>
       </div>
 
-      <!-- Table -->
-      <div class="table-wrapper">
+      <!-- Filters avis Google -->
+      <div class="filters" id="filtersAvis" hidden>
+        <input type="text" id="searchAvis" class="search-input" placeholder="Rechercher par client, auteur, texte…" />
+        <select id="ratingFilter" class="status-filter">
+          <option value="">Toutes les notes</option>
+          <option value="5">⭐⭐⭐⭐⭐ 5 étoiles</option>
+          <option value="4">⭐⭐⭐⭐ 4 étoiles</option>
+          <option value="3">⭐⭐⭐ 3 étoiles</option>
+          <option value="2">⭐⭐ 2 étoiles</option>
+          <option value="1">⭐ 1 étoile</option>
+        </select>
+        <select id="avisStatusFilter" class="status-filter">
+          <option value="">Tous les statuts</option>
+          <option value="repondu">Répondu ✅</option>
+          <option value="en_attente">En attente ⏳</option>
+          <option value="erreur">Erreur ❌</option>
+        </select>
+        <button id="refreshAvisBtn" class="btn-refresh" title="Rafraîchir">↺</button>
+      </div>
+
+      <!-- Filters clients -->
+      <div class="filters" id="filtersClients" hidden>
+        <input type="text" id="searchClients" class="search-input" placeholder="Rechercher par nom, email, entreprise…" />
+        <select id="clientStatusFilter" class="status-filter">
+          <option value="">Tous les statuts</option>
+          <option value="actif">Actif ✅</option>
+          <option value="pending">En attente ⏳</option>
+          <option value="pause">En pause</option>
+          <option value="resilie">Résilié</option>
+        </select>
+        <button id="refreshClientsBtn" class="btn-refresh" title="Rafraîchir">↺</button>
+      </div>
+
+      <!-- Table (contacts + devis) -->
+      <div class="table-wrapper" id="tableWrapper">
         <table class="data-table" id="dataTable">
           <thead id="tableHead"></thead>
           <tbody id="tableBody">
             <tr><td colspan="99" class="table-empty">Chargement…</td></tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Vue avis Google -->
+      <div id="avisWrapper" hidden>
+        <div class="avis-grid" id="avisGrid">
+          <div class="table-empty">Chargement…</div>
+        </div>
+      </div>
+
+      <!-- Vue clients ReplyShield -->
+      <div id="clientsWrapper" hidden>
+        <div class="table-wrapper">
+          <table class="data-table" id="clientsTable">
+            <thead id="clientsTableHead"></thead>
+            <tbody id="clientsTableBody">
+              <tr><td colspan="99" class="table-empty">Chargement…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
     </main>

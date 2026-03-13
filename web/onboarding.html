@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connecter votre Google Business — ReplyShield</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="onboarding.css" />
+</head>
+<body>
+
+  <!-- ── NAV ── -->
+  <nav class="ob-nav">
+    <a href="index.html" class="ob-logo">Reply<span>Shield</span></a>
+    <span class="ob-nav-step" id="obNavStep">Étape 1 / 3</span>
+  </nav>
+
+  <!-- ── ÉTAPE 1 : INFORMATIONS ── -->
+  <div class="ob-step" id="step1">
+    <div class="ob-step-inner">
+      <div class="ob-step-badge">Étape 1 / 3</div>
+      <h1 class="ob-title">Bienvenue sur ReplyShield</h1>
+      <p class="ob-sub">Commençons par vos informations. Cela prend moins de 2 minutes.</p>
+
+      <form class="ob-form" id="formStep1" onsubmit="goStep2(event)">
+        <div class="ob-form-row">
+          <div class="ob-form-group">
+            <label class="ob-label" for="s1Prenom">Votre prénom *</label>
+            <input type="text" id="s1Prenom" class="ob-input" placeholder="Jean" required />
+          </div>
+          <div class="ob-form-group">
+            <label class="ob-label" for="s1Nom">Votre nom *</label>
+            <input type="text" id="s1Nom" class="ob-input" placeholder="Dupont" required />
+          </div>
+        </div>
+        <div class="ob-form-group">
+          <label class="ob-label" for="s1Email">Email professionnel *</label>
+          <input type="email" id="s1Email" class="ob-input" placeholder="jean@monrestaurant.fr" required />
+        </div>
+        <div class="ob-form-group">
+          <label class="ob-label" for="s1Tel">Téléphone *</label>
+          <input type="tel" id="s1Tel" class="ob-input" placeholder="06 12 34 56 78" required />
+        </div>
+        <div class="ob-form-row">
+          <div class="ob-form-group">
+            <label class="ob-label" for="s1Entreprise">Nom de l'établissement *</label>
+            <input type="text" id="s1Entreprise" class="ob-input" placeholder="Le Bistrot du Coin" required />
+          </div>
+          <div class="ob-form-group">
+            <label class="ob-label" for="s1Secteur">Secteur d'activité</label>
+            <select id="s1Secteur" class="ob-input">
+              <option value="restauration">Restauration</option>
+              <option value="beaute">Beauté / Bien-être</option>
+              <option value="automobile">Automobile / Garage</option>
+              <option value="auto_ecole">Auto-école</option>
+              <option value="sante">Santé / Médical</option>
+              <option value="artisanat">Artisanat / BTP</option>
+              <option value="hotellerie">Hôtellerie</option>
+              <option value="services">Services professionnels</option>
+            </select>
+          </div>
+        </div>
+        <div class="ob-form-group">
+          <label class="ob-label" for="s1Ville">Ville</label>
+          <input type="text" id="s1Ville" class="ob-input" placeholder="Lyon" />
+        </div>
+        <button type="submit" class="ob-btn-primary">Continuer →</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── ÉTAPE 2 : CONNEXION GOOGLE ── -->
+  <div class="ob-step" id="step2" hidden>
+    <div class="ob-step-inner">
+      <div class="ob-step-badge">Étape 2 / 3</div>
+      <h1 class="ob-title">Connectez votre Google Business</h1>
+      <p class="ob-sub">ReplyShield a besoin d'accéder à votre fiche Google pour lire et répondre aux avis.</p>
+
+      <!-- Explication des permissions -->
+      <div class="ob-permissions">
+        <h3>Ce que ReplyShield pourra faire :</h3>
+        <ul>
+          <li>✓ <strong>Lire vos avis Google</strong> — pour générer les réponses</li>
+          <li>✓ <strong>Publier des réponses</strong> — au nom de votre établissement</li>
+          <li class="muted">✗ Modifier votre fiche (horaires, photos, infos)</li>
+          <li class="muted">✗ Accéder à votre email ou données personnelles Google</li>
+        </ul>
+      </div>
+
+      <button class="ob-btn-google" id="btnGoogleAuth" onclick="startGoogleAuth()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+        Se connecter avec Google
+      </button>
+
+      <p class="ob-oauth-note">
+        Vous serez redirigé vers Google pour autoriser l'accès. Vos identifiants Google ne sont jamais stockés par ReplyShield.
+      </p>
+
+      <!-- Séparateur -->
+      <div class="ob-sep"><span>ou</span></div>
+
+      <!-- Connexion manuelle (pour les tests / MVP) -->
+      <details class="ob-manual">
+        <summary>Connexion manuelle (avancé)</summary>
+        <div class="ob-manual-content">
+          <p>Si vous avez déjà un refresh token Google, saisissez-le directement :</p>
+          <div class="ob-form-group">
+            <label class="ob-label" for="s2AccountId">Google Account ID</label>
+            <input type="text" id="s2AccountId" class="ob-input" placeholder="accounts/123456789" />
+          </div>
+          <div class="ob-form-group">
+            <label class="ob-label" for="s2LocationId">Google Location ID</label>
+            <input type="text" id="s2LocationId" class="ob-input" placeholder="locations/987654321" />
+          </div>
+          <div class="ob-form-group">
+            <label class="ob-label" for="s2RefreshToken">Refresh Token</label>
+            <input type="text" id="s2RefreshToken" class="ob-input ob-input--mono" placeholder="1//04..." />
+          </div>
+          <button class="ob-btn-secondary" onclick="saveManualCredentials()">Enregistrer →</button>
+        </div>
+      </details>
+
+      <p id="step2Error" class="ob-error" hidden></p>
+      <p id="step2Success" class="ob-success" hidden></p>
+    </div>
+  </div>
+
+  <!-- ── ÉTAPE 3 : CONFIRMATION ── -->
+  <div class="ob-step" id="step3" hidden>
+    <div class="ob-step-inner ob-step-inner--center">
+      <div class="ob-success-icon">✅</div>
+      <h1 class="ob-title">Vous êtes prêt !</h1>
+      <p class="ob-sub">ReplyShield est maintenant connecté à votre Google Business Profile.</p>
+
+      <div class="ob-summary" id="obSummary">
+        <!-- Rempli par JS -->
+      </div>
+
+      <div class="ob-next-steps">
+        <h3>Ce qui se passe maintenant :</h3>
+        <ol>
+          <li><strong>Dans les 2 prochaines heures</strong> — ReplyShield analyse vos avis sans réponse</li>
+          <li><strong>Sous 24h</strong> — Les premières réponses sont publiées sur votre fiche Google</li>
+          <li><strong>En continu</strong> — Chaque nouvel avis reçoit une réponse automatique sous 2h</li>
+        </ol>
+      </div>
+
+      <div class="ob-cta-group">
+        <a href="admin.html" class="ob-btn-primary">Voir le dashboard →</a>
+        <a href="index.html" class="ob-btn-secondary">Retour au site</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PROGRESS BAR ── -->
+  <div class="ob-progress">
+    <div class="ob-progress-bar" id="obProgressBar" style="width: 33%"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="config.js"></script>
+  <script src="onboarding.js"></script>
+</body>
+</html>

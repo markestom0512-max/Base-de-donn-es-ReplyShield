@@ -1,0 +1,349 @@
+{
+  "name": "05 — Réponses automatiques aux avis Google",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 */2 * * *" }]
+        }
+      },
+      "id": "n05-trigger",
+      "name": "Déclencheur (toutes les 2h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/rpc/get_active_clients",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",        "value": "={{ $vars.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "id": "n05-get-clients-rpc",
+      "name": "Lire clients actifs (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fallback : si RPC non disponible, utiliser l'API REST directement\n// Ce nœud parse la réponse Supabase\nconst response = $input.first().json;\n\n// Supabase REST retourne un tableau directement\nconst clients = Array.isArray(response) ? response : (response.data || []);\n\nif (clients.length === 0) {\n  console.log('Aucun client actif trouvé');\n  return [{ json: { _empty: true } }];\n}\n\nconsole.log(`${clients.length} clients actifs à traiter`);\nreturn clients.map(c => ({ json: c }));"
+      },
+      "id": "n05-parse-clients",
+      "name": "Parser clients Supabase",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json._empty }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "notEquals" }
+            }
+          ]
+        }
+      },
+      "id": "n05-check-clients",
+      "name": "Y a-t-il des clients ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "n05-split-clients",
+      "name": "Traiter un client à la fois",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [880, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Obtenir un access token Google via le refresh token du client\nconst client = $input.first().json;\n\nif (!client.google_refresh_token || !client.google_location_id) {\n  console.log(`Client ${client.company} : credentials Google manquants, ignoré`);\n  return [{ json: { ...client, _skip: true, skip_reason: 'no_google_credentials' } }];\n}\n\nreturn [{ json: { ...client, _skip: false } }];"
+      },
+      "id": "n05-check-credentials",
+      "name": "Vérifier credentials Google",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://oauth2.googleapis.com/token",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/x-www-form-urlencoded" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "form",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "client_id",     "value": "={{ $vars.GOOGLE_CLIENT_ID }}" },
+            { "name": "client_secret", "value": "={{ $vars.GOOGLE_CLIENT_SECRET }}" },
+            { "name": "refresh_token", "value": "={{ $('Vérifier credentials Google').first().json.google_refresh_token }}" },
+            { "name": "grant_type",    "value": "refresh_token" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "n05-google-token",
+      "name": "Obtenir access token Google",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://mybusiness.googleapis.com/v4/{{ $('Vérifier credentials Google').first().json.google_account_id }}/{{ $('Vérifier credentials Google').first().json.google_location_id }}/reviews?pageSize=50&orderBy=updateTime+desc",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $json.access_token }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "n05-get-reviews",
+      "name": "Récupérer avis Google",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1540, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filtrer les avis sans réponse et préparer le traitement\nconst client     = $('Vérifier credentials Google').first().json;\nconst response   = $input.first().json;\nconst reviews    = response.reviews || [];\n\n// Ne garder que les avis sans réponse\nconst sansReponse = reviews.filter(r => !r.reviewReply);\n\nconsole.log(`Client ${client.company} : ${reviews.length} avis total, ${sansReponse.length} sans réponse`);\n\nif (sansReponse.length === 0) {\n  return [{ json: { ...client, _no_reviews: true } }];\n}\n\n// Retourner un item par avis à traiter (max 10 par exécution)\nreturn sansReponse.slice(0, 10).map(review => ({\n  json: {\n    // Infos client\n    client_id:          client.id,\n    client_company:     client.company,\n    client_sector:      client.sector,\n    client_city:        client.city,\n    google_account_id:  client.google_account_id,\n    google_location_id: client.google_location_id,\n    access_token:       $('Obtenir access token Google').first().json.access_token,\n    // Infos avis\n    review_id:      review.reviewId,\n    reviewer_name:  review.reviewer?.displayName || 'Un client',\n    reviewer_photo: review.reviewer?.profilePhotoUrl || '',\n    rating:         review.starRating === 'FIVE' ? 5 :\n                    review.starRating === 'FOUR'  ? 4 :\n                    review.starRating === 'THREE' ? 3 :\n                    review.starRating === 'TWO'   ? 2 : 1,\n    review_text:    review.comment || '',\n    review_date:    review.updateTime\n  }\n}));"
+      },
+      "id": "n05-filter-reviews",
+      "name": "Filtrer avis sans réponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1760, 200]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "n05-split-reviews",
+      "name": "Traiter un avis à la fois",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1980, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Construire le prompt Claude adapté au secteur et à la note\nconst avis = $input.first().json;\n\nconst secteurContexte = {\n  'restauration': 'un restaurant. Sois chaleureux, mentionne le plaisir de recevoir les clients.',\n  'beaute':       'un salon de beauté. Sois élégant, remercie pour la confiance accordée.',\n  'automobile':   'un garage automobile. Sois professionnel, valorise l\\'expertise technique.',\n  'auto_ecole':   'une auto-école. Sois encourageant, mentionne la pédagogie et le soutien.',\n  'sante':        'un cabinet médical. Sois bienveillant et professionnel, reste sobre.',\n  'artisanat':    'un artisan. Valorise le savoir-faire et le soin apporté au travail.',\n  'hotellerie':   'un hôtel. Sois chaleureux, invite à revenir, valorise l\\'accueil.',\n  'services':     'une entreprise de services. Sois professionnel et orienté résultats.'\n};\n\nconst ctx = secteurContexte[avis.client_sector] || 'un commerce local. Sois chaleureux et professionnel.';\n\nlet tonParNote = '';\nif (avis.rating >= 4) {\n  tonParNote = 'C\\'est un avis positif. Exprime une vraie gratitude, personnalise avec le prénom si disponible, invite à revenir.';\n} else if (avis.rating === 3) {\n  tonParNote = 'C\\'est un avis mitigé. Remercie pour le retour, reconnais les points à améliorer sans être défensif, rassure.';\n} else {\n  tonParNote = 'C\\'est un avis négatif. Commence par t\\'excuser sincèrement, propose de résoudre le problème en privé, reste calme et constructif. Ne te justifie pas.';\n}\n\nconst reviewText = avis.review_text\n  ? `Texte de l'avis : \"${avis.review_text}\"`\n  : '(L\\'avis ne contient pas de texte, seulement une note)';\n\nconst prompt = `Tu dois rédiger une réponse à un avis Google pour ${avis.client_company}, qui est ${ctx}\n\nNote donnée : ${avis.rating}/5 étoiles\nAuteur : ${avis.reviewer_name}\n${reviewText}\n\nConsignes :\n${tonParNote}\n- Maximum 100 mots\n- Commence par le prénom de l'auteur si disponible (ex: \"Merci ${avis.reviewer_name} !\")\n- Ton humain et authentique, jamais robotique\n- Ne répète pas la même formule générique (\"Merci pour votre avis...\")\n- Ne mentionne jamais que tu es une IA\n- Termine par une invitation à revenir ou un souhait adapté\n- Langue : français\n\nRéponds uniquement avec la réponse à publier, sans guillemets ni explication.`;\n\nreturn [{ json: { ...avis, prompt } }];"
+      },
+      "id": "n05-prepare-prompt",
+      "name": "Préparer prompt Claude",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2200, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key",         "value": "={{ $credentials.password }}" },
+            { "name": "anthropic-version",  "value": "2023-06-01" },
+            { "name": "content-type",       "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-6\",\n  \"max_tokens\": 300,\n  \"system\": \"Tu es un expert en gestion de réputation en ligne pour des commerces locaux. Tu rédiges des réponses aux avis Google courtes, authentiques et efficaces. Tu ne sonnes jamais robotique. Tu t'adaptes au secteur et au ton de l'avis.\",\n  \"messages\": [{ \"role\": \"user\", \"content\": {{ JSON.stringify($json.prompt) }} }]\n}",
+        "options": {}
+      },
+      "id": "n05-claude-response",
+      "name": "Claude — Générer réponse",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2420, 200],
+      "credentials": { "httpBasicAuth": { "id": "anthropic-key", "name": "Anthropic API Key" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const avis          = $('Préparer prompt Claude').first().json;\nconst claudeResp    = $input.first().json;\nconst reponseTexte  = claudeResp.content?.[0]?.text?.trim() || '';\n\nif (!reponseTexte) {\n  throw new Error('Claude n\\'a pas généré de réponse');\n}\n\nreturn [{ json: { ...avis, reponse_generee: reponseTexte } }];"
+      },
+      "id": "n05-extract-response",
+      "name": "Extraire réponse Claude",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2640, 200]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://mybusiness.googleapis.com/v4/{{ $json.google_account_id }}/{{ $json.google_location_id }}/reviews/{{ $json.review_id }}/reply",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $json.access_token }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"comment\": {{ JSON.stringify($json.reponse_generee) }} }",
+        "options": {}
+      },
+      "id": "n05-post-reply",
+      "name": "Poster réponse sur Google",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2860, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/avis_google",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",        "value": "={{ $vars.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type",  "value": "application/json" },
+            { "name": "Prefer",        "value": "resolution=merge-duplicates" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"client_id\":      \"{{ $('Extraire réponse Claude').first().json.client_id }}\",\n  \"review_id\":      \"{{ $('Extraire réponse Claude').first().json.review_id }}\",\n  \"reviewer_name\":  \"{{ $('Extraire réponse Claude').first().json.reviewer_name }}\",\n  \"reviewer_photo\": \"{{ $('Extraire réponse Claude').first().json.reviewer_photo }}\",\n  \"rating\":         {{ $('Extraire réponse Claude').first().json.rating }},\n  \"review_text\":    {{ JSON.stringify($('Extraire réponse Claude').first().json.review_text) }},\n  \"review_date\":    \"{{ $('Extraire réponse Claude').first().json.review_date }}\",\n  \"response_text\":  {{ JSON.stringify($('Extraire réponse Claude').first().json.reponse_generee) }},\n  \"responded_at\":   \"{{ new Date().toISOString() }}\",\n  \"status\":         \"repondu\",\n  \"model_used\":     \"claude-sonnet-4-6\",\n  \"prompt_version\": \"v1\"\n}",
+        "options": {}
+      },
+      "id": "n05-log-supabase",
+      "name": "Logger avis + réponse dans Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3080, 200]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/clients?id=eq.{{ $('Extraire réponse Claude').first().json.client_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",        "value": "={{ $vars.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"last_sync_at\": \"{{ new Date().toISOString() }}\",\n  \"total_reviews_answered\": \"{{ ($('Extraire réponse Claude').first().json.total_reviews_answered || 0) + 1 }}\"\n}",
+        "options": {}
+      },
+      "id": "n05-update-client",
+      "name": "MAJ compteur client",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3300, 200]
+    }
+  ],
+
+  "connections": {
+    "Déclencheur (toutes les 2h)": {
+      "main": [[{ "node": "Lire clients actifs (Supabase)", "type": "main", "index": 0 }]]
+    },
+    "Lire clients actifs (Supabase)": {
+      "main": [[{ "node": "Parser clients Supabase", "type": "main", "index": 0 }]]
+    },
+    "Parser clients Supabase": {
+      "main": [[{ "node": "Y a-t-il des clients ?", "type": "main", "index": 0 }]]
+    },
+    "Y a-t-il des clients ?": {
+      "main": [
+        [{ "node": "Traiter un client à la fois", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Traiter un client à la fois": {
+      "main": [[{ "node": "Vérifier credentials Google", "type": "main", "index": 0 }]]
+    },
+    "Vérifier credentials Google": {
+      "main": [[{ "node": "Obtenir access token Google", "type": "main", "index": 0 }]]
+    },
+    "Obtenir access token Google": {
+      "main": [[{ "node": "Récupérer avis Google", "type": "main", "index": 0 }]]
+    },
+    "Récupérer avis Google": {
+      "main": [[{ "node": "Filtrer avis sans réponse", "type": "main", "index": 0 }]]
+    },
+    "Filtrer avis sans réponse": {
+      "main": [[{ "node": "Traiter un avis à la fois", "type": "main", "index": 0 }]]
+    },
+    "Traiter un avis à la fois": {
+      "main": [[{ "node": "Préparer prompt Claude", "type": "main", "index": 0 }]]
+    },
+    "Préparer prompt Claude": {
+      "main": [[{ "node": "Claude — Générer réponse", "type": "main", "index": 0 }]]
+    },
+    "Claude — Générer réponse": {
+      "main": [[{ "node": "Extraire réponse Claude", "type": "main", "index": 0 }]]
+    },
+    "Extraire réponse Claude": {
+      "main": [[{ "node": "Poster réponse sur Google", "type": "main", "index": 0 }]]
+    },
+    "Poster réponse sur Google": {
+      "main": [[{ "node": "Logger avis + réponse dans Supabase", "type": "main", "index": 0 }]]
+    },
+    "Logger avis + réponse dans Supabase": {
+      "main": [[{ "node": "MAJ compteur client", "type": "main", "index": 0 }]]
+    }
+  },
+
+  "active": false,
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true },
+  "versionId": "05-avis-v1",
+  "id": "workflow-05-avis-google",
+  "tags": [
+    { "name": "replyshield-core" },
+    { "name": "google-reviews" },
+    { "name": "claude-ai" }
+  ],
+
+  "_documentation": {
+    "variables_n8n_requises": [
+      "SUPABASE_URL — URL de votre projet Supabase",
+      "SUPABASE_SERVICE_KEY — clé service_role Supabase (Settings > API)",
+      "GOOGLE_CLIENT_ID — OAuth2 client ID (Google Cloud Console)",
+      "GOOGLE_CLIENT_SECRET — OAuth2 client secret"
+    ],
+    "credentials_n8n_requises": [
+      "anthropic-key — Anthropic API Key (httpBasicAuth, password = clé API)"
+    ],
+    "google_api_setup": [
+      "1. Google Cloud Console → Activer 'My Business API' et 'My Business Account Management API'",
+      "2. Créer un OAuth 2.0 Client ID (Web application)",
+      "3. Ajouter redirect URI : https://votre-n8n.app.n8n.cloud/oauth2/callback",
+      "4. Stocker client_id et client_secret dans N8N Variables",
+      "5. Pour chaque client ReplyShield : obtenir le refresh_token via le flow OAuth onboarding.html"
+    ]
+  }
+}

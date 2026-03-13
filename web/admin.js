@@ -180,17 +180,44 @@ logoutBtn.addEventListener('click', async () => {
 });
 
 // ── Tabs ──────────────────────────────────────────────────
+const filtersDefault  = document.getElementById('filtersDefault');
+const filtersAvis     = document.getElementById('filtersAvis');
+const filtersClients  = document.getElementById('filtersClients');
+const tableWrapper    = document.getElementById('tableWrapper');
+const avisWrapper     = document.getElementById('avisWrapper');
+const clientsWrapper  = document.getElementById('clientsWrapper');
+
+function switchTab(tabName) {
+  currentTab = tabName;
+
+  const isDefault  = tabName === 'contacts' || tabName === 'devis';
+  const isAvis     = tabName === 'avis';
+  const isClients  = tabName === 'clients';
+
+  filtersDefault.hidden  = !isDefault;
+  filtersAvis.hidden     = !isAvis;
+  filtersClients.hidden  = !isClients;
+
+  tableWrapper.hidden    = !isDefault;
+  avisWrapper.hidden     = !isAvis;
+  clientsWrapper.hidden  = !isClients;
+
+  loadData();
+}
+
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
-    currentTab = tab.dataset.tab;
-    loadData();
+    switchTab(tab.dataset.tab);
   });
 });
 
 // ── Data loading ──────────────────────────────────────────
 async function loadData() {
+  if (currentTab === 'avis')    { loadAvis();    return; }
+  if (currentTab === 'clients') { loadClients(); return; }
+
   document.getElementById('tableBody').innerHTML =
     '<tr><td colspan="99" class="table-empty">Chargement…</td></tr>';
 
@@ -209,6 +236,168 @@ async function loadData() {
   renderTable(allRows);
   updateStats(allRows);
 }
+
+// ── Avis Google ────────────────────────────────────────────
+let allAvis = [];
+
+async function loadAvis() {
+  const grid = document.getElementById('avisGrid');
+  grid.innerHTML = '<div class="table-empty">Chargement…</div>';
+
+  const { data, error } = await sb
+    .from('avis_google')
+    .select('*, clients(name, company, sector)')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    grid.innerHTML = `<div class="table-empty">Erreur : ${escHtml(error.message)}</div>`;
+    return;
+  }
+
+  allAvis = data || [];
+  renderAvis(allAvis);
+}
+
+function renderAvis(rows) {
+  const grid = document.getElementById('avisGrid');
+
+  if (!rows.length) {
+    grid.innerHTML = '<div class="table-empty">Aucun avis pour le moment</div>';
+    return;
+  }
+
+  grid.innerHTML = rows.map(avis => {
+    const stars    = '⭐'.repeat(avis.rating || 0) + '☆'.repeat(5 - (avis.rating || 0));
+    const client   = avis.clients ? `${avis.clients.company || avis.clients.name}` : '—';
+    const date     = avis.review_date ? fmtDate(avis.review_date) : fmtDate(avis.created_at);
+    const statusCls = { repondu: 'badge-done', en_attente: 'badge-progress', erreur: 'badge-danger', nouveau: 'badge-new' }[avis.status] || '';
+    const statusLbl = { repondu: 'Répondu ✅', en_attente: 'En attente ⏳', erreur: 'Erreur ❌', nouveau: 'Nouveau' }[avis.status] || avis.status;
+
+    return `
+      <div class="avis-card">
+        <div class="avis-card-header">
+          <div>
+            <div class="avis-reviewer">${escHtml(avis.reviewer_name || 'Anonyme')}</div>
+            <div class="avis-client">${escHtml(client)}</div>
+          </div>
+          <div class="avis-meta">
+            <div class="avis-stars">${stars}</div>
+            <span class="badge ${statusCls}">${statusLbl}</span>
+          </div>
+        </div>
+        ${avis.review_text ? `<p class="avis-text">${escHtml(avis.review_text)}</p>` : '<p class="avis-text avis-no-text">— Avis sans texte —</p>'}
+        ${avis.response_text ? `
+          <div class="avis-response">
+            <div class="avis-response-label">Réponse IA</div>
+            <p>${escHtml(avis.response_text)}</p>
+          </div>` : ''}
+        <div class="avis-footer">${date}</div>
+      </div>`;
+  }).join('');
+}
+
+function applyAvisFilters() {
+  const search = document.getElementById('searchAvis').value.toLowerCase();
+  const rating = document.getElementById('ratingFilter').value;
+  const status = document.getElementById('avisStatusFilter').value;
+
+  const filtered = allAvis.filter(avis => {
+    const client = avis.clients ? `${avis.clients.company || avis.clients.name}` : '';
+    const matchSearch = !search || [avis.reviewer_name, avis.review_text, client]
+      .some(v => v && v.toLowerCase().includes(search));
+    const matchRating = !rating || String(avis.rating) === rating;
+    const matchStatus = !status || avis.status === status;
+    return matchSearch && matchRating && matchStatus;
+  });
+
+  renderAvis(filtered);
+}
+
+document.getElementById('searchAvis').addEventListener('input', applyAvisFilters);
+document.getElementById('ratingFilter').addEventListener('change', applyAvisFilters);
+document.getElementById('avisStatusFilter').addEventListener('change', applyAvisFilters);
+document.getElementById('refreshAvisBtn').addEventListener('click', loadAvis);
+
+// ── Clients ReplyShield ────────────────────────────────────
+let allClients = [];
+
+async function loadClients() {
+  document.getElementById('clientsTableBody').innerHTML =
+    '<tr><td colspan="99" class="table-empty">Chargement…</td></tr>';
+
+  const { data, error } = await sb
+    .from('clients')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    document.getElementById('clientsTableBody').innerHTML =
+      `<tr><td colspan="99" class="table-empty">Erreur : ${escHtml(error.message)}</td></tr>`;
+    return;
+  }
+
+  allClients = data || [];
+  renderClients(allClients);
+}
+
+function renderClients(rows) {
+  const thead = document.getElementById('clientsTableHead');
+  const tbody = document.getElementById('clientsTableBody');
+
+  thead.innerHTML = `<tr>
+    <th>Client</th><th>Email</th><th>Secteur</th><th>Ville</th>
+    <th>Plan</th><th>Statut</th><th>Google</th><th>Avis répondus</th><th>Depuis</th>
+  </tr>`;
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="table-empty">Aucun client pour le moment</td></tr>';
+    return;
+  }
+
+  const planCls  = { starter: '', pro: 'badge-progress', business: 'badge-new' };
+  const statusCls = { actif: 'badge-done', pending: 'badge-new', pause: 'badge-progress', resilie: 'badge-danger' };
+  const statusLbl = { actif: 'Actif ✅', pending: 'En attente', pause: 'En pause', resilie: 'Résilié' };
+
+  tbody.innerHTML = rows.map(c => `
+    <tr>
+      <td><strong>${escHtml(c.name || '—')}</strong><br><span style="color:var(--text-muted);font-size:.82rem">${escHtml(c.company || '')}</span></td>
+      <td>${escHtml(c.email)}</td>
+      <td>${escHtml(fmtSecteur(c.sector))}</td>
+      <td>${escHtml(c.city || '—')}</td>
+      <td><span class="badge ${planCls[c.plan] || ''}">${(c.plan || 'starter').charAt(0).toUpperCase() + (c.plan || 'starter').slice(1)}</span></td>
+      <td><span class="badge ${statusCls[c.status] || ''}">${statusLbl[c.status] || c.status || '—'}</span></td>
+      <td style="text-align:center">${c.google_connected_at ? '✅' : '❌'}</td>
+      <td style="text-align:center">${c.total_reviews_answered || 0}</td>
+      <td>${fmtDate(c.created_at)}</td>
+    </tr>`).join('');
+}
+
+function fmtSecteur(s) {
+  const map = {
+    restauration: 'Restauration', beaute: 'Beauté', automobile: 'Automobile',
+    auto_ecole: 'Auto-école', sante: 'Santé', artisanat: 'Artisanat',
+    hotellerie: 'Hôtellerie', services: 'Services'
+  };
+  return map[s] || s || '—';
+}
+
+function applyClientsFilters() {
+  const search = document.getElementById('searchClients').value.toLowerCase();
+  const status = document.getElementById('clientStatusFilter').value;
+
+  const filtered = allClients.filter(c => {
+    const matchSearch = !search || [c.name, c.email, c.company]
+      .some(v => v && v.toLowerCase().includes(search));
+    const matchStatus = !status || c.status === status;
+    return matchSearch && matchStatus;
+  });
+
+  renderClients(filtered);
+}
+
+document.getElementById('searchClients').addEventListener('input', applyClientsFilters);
+document.getElementById('clientStatusFilter').addEventListener('change', applyClientsFilters);
+document.getElementById('refreshClientsBtn').addEventListener('click', loadClients);
 
 // ── Stats ─────────────────────────────────────────────────
 function updateStats(rows) {
