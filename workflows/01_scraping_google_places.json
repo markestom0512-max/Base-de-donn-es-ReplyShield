@@ -42,7 +42,8 @@
         "queryParameters": {
           "parameters": [
             { "name": "query",    "value": "={{ $json.query }}" },
-            { "name": "language", "value": "fr" }
+            { "name": "language", "value": "fr" },
+            { "name": "key",      "value": "={{ $vars.GOOGLE_PLACES_KEY }}" }
           ]
         },
         "options": { "response": { "response": { "responseFormat": "json" } } }
@@ -51,8 +52,7 @@
       "name": "Google Places — Recherche texte",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [660, 300],
-      "credentials": { "httpQueryAuth": { "id": "google-places-key", "name": "Google Places API Key" } }
+      "position": [660, 300]
     },
     {
       "parameters": {
@@ -73,7 +73,8 @@
           "parameters": [
             { "name": "place_id", "value": "={{ $json.place_id }}" },
             { "name": "fields",   "value": "name,formatted_phone_number,website,opening_hours" },
-            { "name": "language", "value": "fr" }
+            { "name": "language", "value": "fr" },
+            { "name": "key",      "value": "={{ $vars.GOOGLE_PLACES_KEY }}" }
           ]
         }
       },
@@ -81,8 +82,7 @@
       "name": "Google Places — Détails (téléphone, site)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1100, 300],
-      "credentials": { "httpQueryAuth": { "id": "google-places-key", "name": "Google Places API Key" } }
+      "position": [1100, 300]
     },
     {
       "parameters": {
