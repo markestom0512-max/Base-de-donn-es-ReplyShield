@@ -42,8 +42,7 @@
         "queryParameters": {
           "parameters": [
             { "name": "query",    "value": "={{ $json.query }}" },
-            { "name": "language", "value": "fr" },
-            { "name": "key",      "value": "={{ $credentials.value }}" }
+            { "name": "language", "value": "fr" }
           ]
         },
         "options": { "response": { "response": { "responseFormat": "json" } } }
@@ -74,8 +73,7 @@
           "parameters": [
             { "name": "place_id", "value": "={{ $json.place_id }}" },
             { "name": "fields",   "value": "name,formatted_phone_number,website,opening_hours" },
-            { "name": "language", "value": "fr" },
-            { "name": "key",      "value": "={{ $credentials.value }}" }
+            { "name": "language", "value": "fr" }
           ]
         }
       },
