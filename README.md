@@ -10,25 +10,37 @@ Outil complet pour acquérir des clients B2B pour ReplyShield (réponses IA aux 
 
 ```
 replyshield/
+├── .github/
+│   └── workflows/
+│       ├── 01_scrape.yml              # Cron lundi + mercredi 2h
+│       ├── 02_campaign.yml            # Cron mardi + mercredi 9h
+│       ├── 03_relances.yml            # Cron lun–ven 10h
+│       ├── 04_hot_leads.yml           # Cron toutes les 15 min
+│       └── 05_reviews.yml             # Cron toutes les 2h
 ├── config/
-│   └── settings.json               # Configuration centrale (secteurs, villes, scoring, campagne)
+│   └── settings.json                  # Configuration centrale
 ├── data/
-│   └── PROSPECTS_BREVO.csv         # 110 prospects qualifiés prêts à l'import
+│   └── PROSPECTS_BREVO.csv            # 110 prospects qualifiés
 ├── docs/
-│   ├── GUIDE_PROSPECTION.md        # Stratégie et calendrier de campagne
-│   ├── SECTEURS.md                 # Analyse des 8 secteurs ciblés
-│   ├── VILLES.md                   # Répartition géographique
-│   └── STATISTIQUES.md             # Statistiques détaillées
+│   ├── GUIDE_PROSPECTION.md
+│   ├── SECTEURS.md
+│   ├── VILLES.md
+│   └── STATISTIQUES.md
 ├── prompts/
-│   └── email_templates.json        # Templates et prompts Claude pour les emails
+│   └── email_templates.json           # Prompts Claude
 ├── scripts/
-│   └── init_google_sheets.py       # Initialise le CRM Google Sheets
-├── web/                            # Site vitrine ReplyShield (à venir)
-└── workflows/
-    ├── 01_scraping_google_places.json   # Scraping + scoring prospects
-    ├── 02_campagne_envoi.json           # Génération + envoi emails
-    ├── 03_relances_automatiques.json    # Relances J+7, J+14, J+21
-    └── 04_detection_prospects_chauds.json # Alertes ouvertures/clics
+│   ├── utils/
+│   │   ├── sheets.py                  # Helper Google Sheets
+│   │   ├── brevo.py                   # Helper Brevo
+│   │   └── claude_client.py           # Helper Claude
+│   ├── 01_scrape.py                   # Scraping Google Places → Sheets
+│   ├── 02_campaign.py                 # Génération + envoi emails
+│   ├── 03_relances.py                 # Relances J+7 et J+14
+│   ├── 04_hot_leads.py                # Détection prospects chauds
+│   ├── 05_reviews.py                  # Réponses avis Google
+│   └── init_google_sheets.py          # Initialise le CRM
+├── requirements.txt
+└── workflows/                         # Archives N8N (référence uniquement)
 ```
 
 ---
@@ -39,55 +51,85 @@ replyshield/
 
 | Service | Utilisation |
 |---|---|
-| Google Cloud | Places API + Sheets API + Service Account |
-| Brevo | Envoi des emails + webhooks |
-| Anthropic (Claude) | Génération des emails personnalisés |
-| N8N | Orchestration des workflows |
+| Google Cloud | Places API + Sheets API + Service Account + OAuth (My Business) |
+| Brevo | Envoi des emails |
+| Anthropic (Claude) | Génération des emails et réponses avis |
+| Supabase | Base de données clients (workflow 05) |
 
-### Installation
+### 1. Initialiser le CRM Google Sheets
 
-**1. Initialiser le CRM Google Sheets**
 ```bash
-pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+pip install -r requirements.txt
 # Placer credentials.json (Service Account) dans scripts/
 python scripts/init_google_sheets.py
 ```
+
 Copier l'ID du spreadsheet créé dans `config/settings.json → google_sheets.spreadsheet_id`.
 
-**2. Configurer les clés API dans N8N Credentials**
-- `GOOGLE_PLACES_KEY` — clé API Google Cloud
-- `ANTHROPIC_KEY` — clé API Anthropic
-- `BREVO_KEY` — clé API Brevo
+### 2. Configurer les Secrets GitHub
 
-**3. Importer les workflows dans N8N**
+Dans ton repo GitHub → **Settings → Secrets and variables → Actions** → **New repository secret** :
 
-Dans N8N → Workflows → Import from file, dans cet ordre :
-1. `workflows/04_detection_prospects_chauds.json` (webhook — à activer en premier)
-2. `workflows/01_scraping_google_places.json`
-3. `workflows/03_relances_automatiques.json`
-4. `workflows/02_campagne_envoi.json`
+| Secret | Description |
+|---|---|
+| `GOOGLE_PLACES_KEY` | Clé API Google Cloud (Places API activée) |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | Contenu du fichier `credentials.json` encodé en base64 |
+| `SPREADSHEET_ID` | ID du Google Sheet CRM (ex: `1BxiM...`) |
+| `ANTHROPIC_KEY` | Clé API Anthropic |
+| `BREVO_KEY` | Clé API Brevo |
+| `ALERT_EMAIL` | Email qui reçoit les alertes prospects chauds |
+| `SUPABASE_URL` | URL de ton projet Supabase (workflow 05) |
+| `SUPABASE_KEY` | Clé `service_role` Supabase (workflow 05) |
+| `GOOGLE_CLIENT_ID` | OAuth client ID Google (workflow 05) |
+| `GOOGLE_CLIENT_SECRET` | OAuth client secret Google (workflow 05) |
 
-**4. Configurer le webhook Brevo**
+**Encoder le Service Account en base64 :**
+```bash
+base64 -w 0 credentials.json
+```
+Coller le résultat dans le secret `GOOGLE_SERVICE_ACCOUNT_JSON`.
 
-Brevo → Settings → Webhooks → Add webhook
-- URL : `https://TON-N8N.app.n8n.cloud/webhook/brevo-events`
-- Events : Email opened, Email clicked, Email replied
+### 3. Pousser sur GitHub
 
-**5. Importer les 110 prospects existants (optionnel)**
-
-Importer `data/PROSPECTS_BREVO.csv` directement dans Brevo (Contacts → Importer) ou dans l'onglet PROSPECTS du Google Sheet avec statut `nouveau`.
+Les workflows se déclenchent automatiquement dès que le code est sur la branche principale.
+Pour tester manuellement : **GitHub → Actions → choisir un workflow → Run workflow**.
 
 ---
 
 ## Calendrier automatique
 
 ```
-LUNDI    02:00  → Scraping Google Places (nouveaux prospects)
-MARDI    09:00  → Envoi emails initiaux (batch 20, score > 60)
-MERCREDI 02:00  → Scraping Google Places (suite)
-MERCREDI 09:00  → Envoi emails initiaux (suite)
-CHAQUE JOUR 10:00 → Relances automatiques (J+7, J+14, J+21)
-EN TEMPS RÉEL     → Alerte email si prospect ouvre 3x ou clique
+LUNDI      02:00  → Scraping Google Places
+LUNDI–VEN  10:00  → Relances automatiques (J+7, J+14)
+MARDI      09:00  → Envoi emails initiaux (batch 20, score > 60)
+MERCREDI   02:00  → Scraping Google Places (suite)
+MERCREDI   09:00  → Envoi emails initiaux (suite)
+TOUTES LES 15 MIN → Détection prospects chauds (polling Brevo)
+TOUTES LES 2H     → Réponses automatiques aux avis Google
+```
+
+---
+
+## Lancement manuel d'un script
+
+```bash
+# Installer les dépendances
+pip install -r requirements.txt
+
+# Définir les variables d'environnement
+export GOOGLE_PLACES_KEY="..."
+export GOOGLE_SERVICE_ACCOUNT_JSON="$(base64 -w 0 credentials.json)"
+export SPREADSHEET_ID="..."
+export ANTHROPIC_KEY="..."
+export BREVO_KEY="..."
+export ALERT_EMAIL="..."
+
+# Lancer un script
+python scripts/01_scrape.py
+python scripts/02_campaign.py
+python scripts/03_relances.py
+python scripts/04_hot_leads.py
+python scripts/05_reviews.py
 ```
 
 ---
@@ -127,10 +169,8 @@ Pour adapter le système à un autre produit, modifier uniquement `config/settin
 
 | Service | Plan | Coût/mois |
 |---|---|---|
-| N8N Cloud Starter | — | 0–20€ |
+| GitHub Actions | Gratuit (2 000 min/mois) | 0€ |
 | Google Places API | Pay as you go | ~5–15€ |
 | Anthropic Claude | Pay as you go | ~2–5€ |
 | Brevo | Starter | 0–25€ |
-| **Total** | | **~7–65€** |
-
-Version 0€ : N8N self-hosted + plan gratuit Brevo (300 emails/jour).
+| **Total** | | **~7–45€** |

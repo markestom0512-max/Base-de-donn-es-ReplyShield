@@ -1,0 +1,31 @@
+name: 04 — Détection prospects chauds
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # Toutes les 15 minutes
+  workflow_dispatch:
+
+jobs:
+  hot-leads:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Détecter les prospects chauds
+        env:
+          ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_KEY }}
+          BREVO_KEY: ${{ secrets.BREVO_KEY }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+        run: python scripts/04_hot_leads.py
